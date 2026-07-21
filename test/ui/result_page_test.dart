@@ -91,6 +91,7 @@ void main() {
       ];
       expect(leftEdges.toSet(), hasLength(1));
     }
+    expect(find.text(', '), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

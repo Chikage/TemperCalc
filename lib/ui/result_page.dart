@@ -306,7 +306,6 @@ class _AlignedResultRowsLayout extends StatelessWidget {
                                 value: column < row.values.length
                                     ? row.values[column]
                                     : null,
-                                showComma: column < row.values.length - 1,
                                 linked: row.linkValues,
                               ),
                             ),
@@ -324,14 +323,9 @@ class _AlignedResultRowsLayout extends StatelessWidget {
 }
 
 class _AlignedResultValue extends StatelessWidget {
-  const _AlignedResultValue({
-    required this.value,
-    required this.showComma,
-    required this.linked,
-  });
+  const _AlignedResultValue({required this.value, required this.linked});
 
   final String? value;
-  final bool showComma;
   final bool linked;
 
   @override
@@ -346,7 +340,6 @@ class _AlignedResultValue extends StatelessWidget {
           _WikiLink(label: value!, monospace: true)
         else
           SelectableText(value!, style: style),
-        if (showComma) const Text(', ', style: style),
       ],
     );
   }
