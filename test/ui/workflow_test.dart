@@ -36,6 +36,7 @@ const _result = TemperamentInfo(
     'WE primes': ['1201.236', '1898.448', '2788.849', '3368.414'],
   },
   badness: '0.347',
+  complexity: '3.800000000',
 );
 
 const _searchResult = TemperamentSearchResult(
@@ -349,9 +350,22 @@ void main() {
     );
     await _openFavorites(tester);
 
-    final exportBeforeImport = tester.widget<IconButton>(
-      find.byKey(const ValueKey('export-favorites')),
+    final appBar = find.byType(AppBar);
+    final importButton = find.byKey(const ValueKey('import-favorites'));
+    final exportButton = find.byKey(const ValueKey('export-favorites'));
+    final infoButton = find.byTooltip('About Temper Calc');
+    expect(find.descendant(of: appBar, matching: importButton), findsOneWidget);
+    expect(find.descendant(of: appBar, matching: exportButton), findsOneWidget);
+    expect(
+      tester.getCenter(importButton).dx,
+      lessThan(tester.getCenter(exportButton).dx),
     );
+    expect(
+      tester.getCenter(exportButton).dx,
+      lessThan(tester.getCenter(infoButton).dx),
+    );
+
+    final exportBeforeImport = tester.widget<IconButton>(exportButton);
     expect(exportBeforeImport.onPressed, isNull);
     await tester.tap(find.byTooltip('Import favorites'));
     await tester.pumpAndSettle();

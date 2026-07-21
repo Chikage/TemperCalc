@@ -30,6 +30,7 @@ const _result = TemperamentInfo(
     'WE primes': ['1201.236', '1898.448'],
   },
   badness: '0.347',
+  complexity: '3.800000000',
 );
 
 void main() {

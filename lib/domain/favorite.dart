@@ -153,6 +153,7 @@ Map<String, Object?> _resultToJson(TemperamentInfo result) => {
   'errors': result.errors,
   'primes': result.primes,
   'badness': result.badness,
+  'complexity': result.complexity,
 };
 
 TemperamentInfo _resultFromJson(Map<String, Object?> json) {
@@ -198,6 +199,7 @@ TemperamentInfo _resultFromJson(Map<String, Object?> json) {
     errors: stringLists('errors'),
     primes: stringLists('primes'),
     badness: json['badness']! as String,
+    complexity: json['complexity'] as String? ?? 'NA',
   );
 }
 

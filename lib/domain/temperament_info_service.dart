@@ -273,10 +273,16 @@ class TemperamentInfoService {
         .transpose()
         .multiply(metricTenney(expandedSubgroup).inverse())
         .multiply(basisDouble);
+    final tenneyInverse = _symmetrize(tenneyProjection.inverse());
     final badness = temperamentBadness(
       mapping,
       subgroup,
-      weight: tenneyProjection.inverse(),
+      weight: tenneyInverse,
+    );
+    final complexity = temperamentComplexity(
+      mapping,
+      subgroup,
+      weight: tenneyInverse,
     );
 
     final familyMatches = searchFamilies(expanded, expandedMapping);
@@ -296,6 +302,7 @@ class TemperamentInfoService {
       errors: Map.unmodifiable(errors),
       primes: Map.unmodifiable(primes),
       badness: badness?.toStringAsFixed(_detailPrecision) ?? 'NA',
+      complexity: complexity?.toStringAsFixed(_detailPrecision) ?? 'NA',
     );
   }
 }

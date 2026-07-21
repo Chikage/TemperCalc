@@ -55,10 +55,16 @@ class _ResultPageState extends State<ResultPage> {
       buffer.writeln(formatMatrixText(result.mapping));
     }
     for (var index = 0; index < result.preimage.length; index++) {
-      buffer.writeln('preimage ${index + 1}: ${result.preimage[index]}');
+      buffer.writeln(
+        '${_indexedLabel('preimage', index, result.preimage.length)}: '
+        '${result.preimage[index]}',
+      );
       for (final entry in result.tunings.entries) {
         if (index < entry.value.length) {
-          buffer.writeln('${entry.key} ${index + 1}: ${entry.value[index]}');
+          buffer.writeln(
+            '${_indexedLabel(entry.key, index, result.preimage.length)}: '
+            '${entry.value[index]}',
+          );
         }
       }
     }
@@ -71,6 +77,7 @@ class _ResultPageState extends State<ResultPage> {
       }
     }
     buffer.writeln('badness: ${result.badness}');
+    buffer.writeln('complexity: ${result.complexity}');
     await Clipboard.setData(ClipboardData(text: buffer.toString().trimRight()));
     if (!context.mounted) return;
     ScaffoldMessenger.of(
@@ -158,6 +165,10 @@ class _ResultPageState extends State<ResultPage> {
         label: 'badness',
         value: _TextValue(result.badness, monospace: true),
       ),
+      _ResultRow(
+        label: 'complexity',
+        value: _TextValue(result.complexity, monospace: true),
+      ),
     ];
 
     return Scaffold(
@@ -214,7 +225,7 @@ class _ResultPageState extends State<ResultPage> {
     for (var index = 0; index < result.preimage.length; index++) {
       rows.add(
         _ResultRow(
-          label: 'preimage ${index + 1}',
+          label: _indexedLabel('preimage', index, result.preimage.length),
           value: _WikiLink(label: result.preimage[index], monospace: true),
         ),
       );
@@ -222,7 +233,7 @@ class _ResultPageState extends State<ResultPage> {
         if (index >= entry.value.length) continue;
         rows.add(
           _ResultRow(
-            label: '${entry.key} ${index + 1}',
+            label: _indexedLabel(entry.key, index, result.preimage.length),
             value: _TextValue(entry.value[index], monospace: true),
           ),
         );
@@ -231,6 +242,9 @@ class _ResultPageState extends State<ResultPage> {
     return rows;
   }
 }
+
+String _indexedLabel(String label, int index, int itemCount) =>
+    itemCount == 1 ? label : '$label $index';
 
 class _ResultTable extends StatelessWidget {
   const _ResultTable({required this.rows});
@@ -242,6 +256,7 @@ class _ResultTable extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).colorScheme.outline),
+        borderRadius: BorderRadius.circular(6),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: LayoutBuilder(

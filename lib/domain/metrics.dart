@@ -4,6 +4,7 @@ import '../core/double_matrix.dart';
 import '../core/int_matrix.dart';
 import '../core/lattice.dart';
 import '../core/rational.dart';
+import 'input_parser.dart';
 import 'interval.dart';
 import 'models.dart';
 
@@ -384,6 +385,32 @@ double? temperamentBadness(
   if (!errorHeight.isFinite || errorHeight <= 1e-4) return null;
   final exponent = rank / (dimension - rank);
   return errorHeight * math.pow(mapHeight, exponent) / justHeight;
+}
+
+double? temperamentComplexity(
+  IntMatrix mapping,
+  List<Rational> subgroup, {
+  DoubleMatrix? weight,
+}) {
+  if (mapping.columnCount != subgroup.length) {
+    throw ArgumentError('Mapping and subgroup dimensions differ');
+  }
+  final logs = logSubgroup(subgroup);
+  final normalizedWeight = normalizeDeterminant(
+    weight ?? DoubleMatrix.diagonal(logs.map((value) => 1.0 / (value * value))),
+  );
+  final mapHeight = height(
+    DoubleMatrix.fromIntMatrix(mapping),
+    normalizedWeight,
+  );
+  final calibration = height(
+    DoubleMatrix.fromIntMatrix(patentMap(41.0, subgroup)),
+    normalizedWeight,
+  );
+  if (mapHeight == null || calibration == null) return null;
+  final complexity =
+      math.pow(2.0, mapping.rowCount - 1) * mapHeight * 41.0 / calibration;
+  return complexity.isFinite ? complexity.toDouble() : null;
 }
 
 double? _codimensionOneErrorHeight(

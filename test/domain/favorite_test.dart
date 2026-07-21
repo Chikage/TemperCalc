@@ -31,6 +31,7 @@ const _result = TemperamentInfo(
     'WE primes': ['1201.236', '1898.448'],
   },
   badness: '0.347',
+  complexity: '3.800000000',
 );
 
 void main() {
@@ -116,6 +117,24 @@ void main() {
     expect(decoded.result.tunings, _result.tunings);
     expect(decoded.result.errors, _result.errors);
     expect(decoded.result.primes, _result.primes);
+    expect(decoded.result.complexity, _result.complexity);
+  });
+
+  test('loads legacy favorites without complexity', () {
+    final original = FavoriteEntry.fromCalculator(
+      input: const CalculatorInput(
+        subgroup: '7',
+        source: CalculationSource.edos,
+        reduction: GeneratorReduction.layout,
+        weight: TuningWeight.unweighted,
+        edos: '12, 19',
+      ),
+      result: _result,
+    );
+    final json = original.toJson();
+    (json['result']! as Map<String, Object?>).remove('complexity');
+
+    expect(FavoriteEntry.fromJson(json).result.complexity, 'NA');
   });
 
   test('migrates a legacy EDO join embedded in the EDO list', () {

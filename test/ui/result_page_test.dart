@@ -38,10 +38,14 @@ void main() {
         [12, 19, 28],
       ],
       preimage: ['16/15'],
-      tunings: {},
+      tunings: {
+        'WE tuning': ['111.731285270'],
+        'CWE tuning': ['111.731285270'],
+      },
       errors: {},
       primes: {},
       badness: '0.471479111',
+      complexity: '12.000000000',
     );
 
     await tester.pumpWidget(MaterialApp(home: ResultPage(result: result)));
@@ -59,6 +63,12 @@ void main() {
     ]);
     final familyLinkText = tester.widget<Text>(find.text('compton'));
     expect(familyLinkText.style?.decoration, isNull);
+    expect(find.text('preimage'), findsOneWidget);
+    expect(find.text('WE tuning'), findsOneWidget);
+    expect(find.text('CWE tuning'), findsOneWidget);
+    expect(find.text('preimage 0'), findsNothing);
+    expect(find.text('WE tuning 0'), findsNothing);
+    expect(find.text('CWE tuning 0'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -107,26 +117,26 @@ void main() {
         'CWE primes': ['1200.000000000', '1896.651000000', '2789.199000000'],
       },
       badness: '0.000000000',
+      complexity: '3.800000000',
     );
 
     await tester.pumpWidget(MaterialApp(home: ResultPage(result: result)));
 
     for (var index = 0; index < result.preimage.length; index++) {
-      final number = index + 1;
       final labels = [
-        'preimage $number',
-        'WE tuning $number',
-        'CWE tuning $number',
+        'preimage $index',
+        'WE tuning $index',
+        'CWE tuning $index',
       ];
       final tops = labels
           .map((label) => tester.getTopLeft(find.text(label)).dy)
           .toList();
       expect(tops[0], lessThan(tops[1]));
       expect(tops[1], lessThan(tops[2]));
-      if (number < result.preimage.length) {
+      if (index < result.preimage.length - 1) {
         expect(
           tops[2],
-          lessThan(tester.getTopLeft(find.text('preimage ${number + 1}')).dy),
+          lessThan(tester.getTopLeft(find.text('preimage ${index + 1}')).dy),
         );
       }
     }
@@ -138,6 +148,10 @@ void main() {
     expect(
       tester.getTopLeft(find.text('edo join')).dy,
       lessThan(tester.getTopLeft(find.text('mapping')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('badness')).dy,
+      lessThan(tester.getTopLeft(find.text('complexity')).dy),
     );
     expect(find.byKey(const ValueKey('mapping-left-bracket')), findsOneWidget);
     expect(find.byKey(const ValueKey('mapping-right-bracket')), findsOneWidget);

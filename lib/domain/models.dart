@@ -96,6 +96,7 @@ class TemperamentInfo {
     required this.errors,
     required this.primes,
     required this.badness,
+    required this.complexity,
     this.families = const [],
     this.weakFamilies = const [],
   });
@@ -115,6 +116,7 @@ class TemperamentInfo {
   final Map<String, List<String>> errors;
   final Map<String, List<String>> primes;
   final String badness;
+  final String complexity;
 }
 
 class SearchCandidate {

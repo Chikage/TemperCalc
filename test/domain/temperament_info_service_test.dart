@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:temper_calc/domain/models.dart';
 import 'package:temper_calc/domain/temperament_info_service.dart';
+import 'package:temper_calc/domain/temperament_search_service.dart';
 
 void main() {
   const service = TemperamentInfoService();
@@ -58,6 +59,23 @@ void main() {
       '2800.000000000',
     ]);
     expect(result.badness, '0.471479111');
+    expect(result.complexity, matches(nineDecimals));
+    final searchResult = const TemperamentSearchService().search(
+      const SearchInput(
+        subgroup: '5',
+        badness: BadnessType.dirichlet,
+        reduction: GeneratorReduction.octave,
+        weight: TuningWeight.weil,
+        commas: '81/80',
+      ),
+    );
+    final searchCandidate = searchResult.groups.single.candidates.firstWhere(
+      (candidate) => candidate.label == '12',
+    );
+    expect(
+      double.parse(result.complexity),
+      closeTo(searchCandidate.complexity, 0.0000000005),
+    );
     expect(result.equalDivisionJoinLabel, isNull);
     expect(result.equalDivisionJoin, isNull);
   });
@@ -74,6 +92,7 @@ void main() {
     expect(result.tunings['WE tuning'], ['1201.235786007', '697.212160921']);
     expect(result.tunings['CWE tuning'], ['1200.000000000', '696.656198703']);
     expect(result.badness, '0.346892245');
+    expect(result.complexity, matches(nineDecimals));
     expect(result.equalDivisionJoinLabel, 'edo join');
     expect(result.equalDivisionJoin, isNotEmpty);
     expect(

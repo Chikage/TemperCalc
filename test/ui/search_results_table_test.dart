@@ -50,6 +50,7 @@ const _temperamentInfo = TemperamentInfo(
   errors: {},
   primes: {},
   badness: '0.778',
+  complexity: '3.800000000',
 );
 
 void main() {
