@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:temper_calc/data/favorites_store.dart';
 import 'package:temper_calc/data/favorites_transfer.dart';
 import 'package:temper_calc/domain/favorite.dart';
@@ -84,6 +85,23 @@ const _twoCandidateResult = TemperamentSearchResult(
 );
 
 void main() {
+  testWidgets('about dialog shows the current build version', (tester) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'Temper Calc',
+      packageName: 'com.pythonanywhere.sintel',
+      version: '1.0.9',
+      buildNumber: '12',
+      buildSignature: '',
+    );
+    await _pumpApp(tester);
+
+    await tester.tap(find.byTooltip('About Temper Calc'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1.0.9 Build 12'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('calculator switches input mode and presents the result matrix', (
     tester,
   ) async {

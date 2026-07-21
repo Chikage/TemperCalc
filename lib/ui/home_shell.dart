@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../data/favorites_store.dart';
 import '../data/favorites_transfer.dart';
@@ -36,6 +37,7 @@ class _HomeShellState extends State<HomeShell> {
   late final bool _ownsFavorites;
   late final SettingsController _settings;
   late final bool _ownsSettings;
+  Future<PackageInfo>? _packageInfo;
   int _index = 0;
   bool _transferringFavorites = false;
 
@@ -59,6 +61,23 @@ class _HomeShellState extends State<HomeShell> {
     if (_ownsFavorites) _favorites.dispose();
     if (_ownsSettings) _settings.dispose();
     super.dispose();
+  }
+
+  Future<void> _showAboutApp() async {
+    final packageInfo = await (_packageInfo ??= PackageInfo.fromPlatform());
+    if (!mounted) return;
+    showAboutDialog(
+      context: context,
+      applicationName: packageInfo.appName,
+      applicationVersion:
+          '${packageInfo.version} Build ${packageInfo.buildNumber}',
+      applicationLegalese:
+          'Copyright (c) 2026 Shiryee Lin\nBased on Sin-tel/temper',
+      applicationIcon: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.asset('assets/app_icon_flat.png', width: 52, height: 52),
+      ),
+    );
   }
 
   Future<void> _importFavorites() async {
@@ -182,21 +201,7 @@ class _HomeShellState extends State<HomeShell> {
             IconButton(
               tooltip: 'About Temper Calc',
               icon: const Icon(Icons.info_outline),
-              onPressed: () => showAboutDialog(
-                context: context,
-                applicationName: 'Temper Calc',
-                applicationVersion: '1.0.8 b11',
-                applicationLegalese:
-                    'Copyright (c) 2026 Shiryee Lin\nBased on Sin-tel/temper',
-                applicationIcon: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.asset(
-                    'assets/app_icon_flat.png',
-                    width: 52,
-                    height: 52,
-                  ),
-                ),
-              ),
+              onPressed: _showAboutApp,
             ),
           ],
         ),
