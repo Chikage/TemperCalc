@@ -47,7 +47,7 @@ Android 正式签名时，将 `android/key.properties.example` 复制为被 Git 
 `android/key.properties`，填写 upload keystore 信息后执行：
 
 ```shell
-flutter build apk --release --split-per-abi --build-name 1.0.2 --build-number 2003
+flutter build apk --release --target-platform android-arm64 --build-name 1.0.3 --build-number 2004
 ```
 
 iOS 正式归档需先在 Xcode 中为 `com.pythonanywhere.sintel` 配置有效的

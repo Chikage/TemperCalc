@@ -131,7 +131,7 @@ class _CalculatorPageState extends State<CalculatorPage>
                         focusNode: _subgroupFocus,
                         decoration: const InputDecoration(
                           labelText: 'Prime limit or subgroup',
-                          hintText: '11  or  2.3.5.7',
+                          hintText: '11  or  2,3,5,7',
                         ),
                         textInputAction: TextInputAction.next,
                         validator: (value) {
