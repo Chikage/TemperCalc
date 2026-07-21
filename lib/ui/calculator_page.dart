@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/favorites_store.dart';
+import '../domain/app_settings.dart';
 import '../domain/favorite.dart';
 import '../domain/models.dart';
 import 'app_callbacks.dart';
@@ -12,12 +13,14 @@ class CalculatorPage extends StatefulWidget {
     required this.active,
     required this.onCalculate,
     this.favorites,
+    this.settings = const AppSettings(),
     super.key,
   });
 
   final bool active;
   final CalculateCallback onCalculate;
   final FavoritesController? favorites;
+  final AppSettings settings;
 
   @override
   State<CalculatorPage> createState() => _CalculatorPageState();
@@ -102,6 +105,7 @@ class _CalculatorPageState extends State<CalculatorPage>
           builder: (_) => ResultPage(
             result: result,
             favorites: widget.favorites,
+            settings: widget.settings,
             favorite: FavoriteEntry.fromCalculator(
               input: input,
               result: result,

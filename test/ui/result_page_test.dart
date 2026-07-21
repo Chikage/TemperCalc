@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:temper_calc/domain/app_settings.dart';
 import 'package:temper_calc/domain/models.dart';
 import 'package:temper_calc/ui/result_page.dart';
 import 'package:url_launcher/link.dart';
@@ -20,6 +23,61 @@ void main() {
     expect(vectors.map((vector) => vector.length).toSet(), {17});
     expect(vectors.map((vector) => vector.indexOf('[')).toSet(), {0});
     expect(vectors.map((vector) => vector.indexOf(']')).toSet(), {16});
+  });
+
+  testWidgets('shows loading and supports retrying a failed result', (
+    tester,
+  ) async {
+    const result = TemperamentInfo(
+      rank: 2,
+      subgroup: '2.3.5',
+      commaBasis: [],
+      equalDivisionsLabel: 'EDOs',
+      equalDivisions: ['12'],
+      mapping: [
+        [1, 1, 0],
+      ],
+      preimage: [],
+      tunings: {},
+      errors: {},
+      primes: {},
+      badness: '0.778',
+      complexity: '3.800000000',
+    );
+    final attempts = <Completer<TemperamentInfo>>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ResultPage.loading(
+          loadResult: () {
+            final attempt = Completer<TemperamentInfo>();
+            attempts.add(attempt);
+            return attempt.future;
+          },
+        ),
+      ),
+    );
+
+    expect(attempts, hasLength(1));
+    expect(find.text('Temperament info'), findsOneWidget);
+    expect(find.text('Loading'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    attempts.single.completeError(StateError('failed'));
+    await tester.pump();
+    expect(find.text('Could not load temperament info'), findsOneWidget);
+    expect(find.text('Bad state: failed'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
+    await tester.pump();
+    expect(attempts, hasLength(2));
+    expect(find.text('Loading'), findsOneWidget);
+
+    attempts.last.complete(result);
+    await tester.pumpAndSettle();
+    expect(find.text('Loading'), findsNothing);
+    expect(find.byType(MatrixView), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('links result names and ratios to xen wiki', (tester) async {
@@ -160,6 +218,68 @@ void main() {
       find.text('1201.391000000\n1898.436000000\n2787.990000000'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('applies precision and temperament info visibility settings', (
+    tester,
+  ) async {
+    const result = TemperamentInfo(
+      rank: 2,
+      subgroup: '2.3.5',
+      commaBasis: [],
+      equalDivisionsLabel: 'EDOs',
+      equalDivisions: ['12'],
+      mapping: [
+        [1, 1, 0],
+      ],
+      preimage: ['2'],
+      tunings: {
+        'WE tuning': ['1201.236000000'],
+        'CWE tuning': ['1200.000000000'],
+      },
+      errors: {
+        'WE errors': ['1.236000000'],
+        'CWE errors': ['0.000000000'],
+      },
+      primes: {
+        'WE primes': ['1201.236000000'],
+        'CWE primes': ['1200.000000000'],
+      },
+      badness: '0.347000000',
+      complexity: '3.800000000',
+    );
+    const settings = AppSettings(
+      tuningDecimalPlaces: 2,
+      errorsDecimalPlaces: 3,
+      primesDecimalPlaces: 4,
+      badnessDecimalPlaces: 1,
+      visibleTemperamentInfoFields: {
+        TemperamentInfoField.tunings,
+        TemperamentInfoField.errors,
+        TemperamentInfoField.primes,
+        TemperamentInfoField.badness,
+      },
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ResultPage(result: result, settings: settings),
+      ),
+    );
+
+    expect(find.text('rank'), findsNothing);
+    expect(find.text('mapping'), findsNothing);
+    expect(find.text('preimage'), findsNothing);
+    expect(find.text('WE tuning'), findsOneWidget);
+    expect(find.text('CWE tuning'), findsNothing);
+    expect(find.text('CWE errors'), findsNothing);
+    expect(find.text('CWE primes'), findsNothing);
+    expect(find.text('1201.24'), findsOneWidget);
+    expect(find.text('1.236'), findsOneWidget);
+    expect(find.text('1201.2360'), findsOneWidget);
+    expect(find.text('0.3'), findsOneWidget);
+    expect(find.text('complexity'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

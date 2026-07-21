@@ -3,20 +3,37 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/link.dart';
 
 import '../data/favorites_store.dart';
+import '../domain/app_settings.dart';
 import '../domain/favorite.dart';
 import '../domain/models.dart';
 
 class ResultPage extends StatefulWidget {
   const ResultPage({
-    required this.result,
+    required TemperamentInfo result,
     this.favorite,
     this.favorites,
+    this.settings = const AppSettings(),
     super.key,
-  });
+  }) : _initialResult = result,
+       _resultLoader = null,
+       favoriteBuilder = null;
 
-  final TemperamentInfo result;
+  const ResultPage.loading({
+    required Future<TemperamentInfo> Function() loadResult,
+    this.favoriteBuilder,
+    this.favorites,
+    this.settings = const AppSettings(),
+    super.key,
+  }) : _initialResult = null,
+       favorite = null,
+       _resultLoader = loadResult;
+
+  final TemperamentInfo? _initialResult;
   final FavoriteEntry? favorite;
   final FavoritesController? favorites;
+  final AppSettings settings;
+  final Future<TemperamentInfo> Function()? _resultLoader;
+  final FavoriteEntry Function(TemperamentInfo result)? favoriteBuilder;
 
   @override
   State<ResultPage> createState() => _ResultPageState();
@@ -24,60 +41,143 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   bool _savingFavorite = false;
+  TemperamentInfo? _loadedResult;
+  FavoriteEntry? _loadedFavorite;
+  Object? _loadError;
 
-  TemperamentInfo get result => widget.result;
+  TemperamentInfo get result => widget._initialResult ?? _loadedResult!;
+
+  FavoriteEntry? get favorite => widget.favorite ?? _loadedFavorite;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget._resultLoader != null) _loadResult();
+  }
+
+  Future<void> _loadResult() async {
+    if (_loadError != null) setState(() => _loadError = null);
+    try {
+      final result = await widget._resultLoader!();
+      final favorite = widget.favoriteBuilder?.call(result);
+      if (!mounted) return;
+      setState(() {
+        _loadedResult = result;
+        _loadedFavorite = favorite;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loadError = error);
+    }
+  }
+
+  bool _shows(TemperamentInfoField field) => widget.settings.shows(field);
+
+  String _formatDecimal(String value, int decimalPlaces) =>
+      double.tryParse(value)?.toStringAsFixed(decimalPlaces) ?? value;
+
+  bool _showsMetric(String label, TemperamentInfoField field) {
+    final normalized = label.toLowerCase();
+    final resolved = switch (field) {
+      TemperamentInfoField.tunings when normalized.startsWith('c') =>
+        TemperamentInfoField.constrainedTunings,
+      TemperamentInfoField.errors when normalized.startsWith('target ') =>
+        TemperamentInfoField.targetErrors,
+      TemperamentInfoField.errors when normalized.startsWith('c') =>
+        TemperamentInfoField.constrainedErrors,
+      TemperamentInfoField.primes when normalized.startsWith('target ') =>
+        TemperamentInfoField.targetPrimes,
+      TemperamentInfoField.primes when normalized.startsWith('c') =>
+        TemperamentInfoField.constrainedPrimes,
+      _ => field,
+    };
+    return _shows(resolved);
+  }
 
   Future<void> _copy(BuildContext context) async {
-    final buffer = StringBuffer()
-      ..writeln('rank: ${result.rank}')
-      ..writeln('subgroup: ${result.subgroup}');
-    if (result.families.isNotEmpty || result.weakFamilies.isNotEmpty) {
+    final buffer = StringBuffer();
+    if (_shows(TemperamentInfoField.rank)) {
+      buffer.writeln('rank: ${result.rank}');
+    }
+    if (_shows(TemperamentInfoField.subgroup)) {
+      buffer.writeln('subgroup: ${result.subgroup}');
+    }
+    if (_shows(TemperamentInfoField.families) &&
+        (result.families.isNotEmpty || result.weakFamilies.isNotEmpty)) {
       buffer.writeln(
         'families: ${[...result.families, ...result.weakFamilies.map((name) => '($name)')].join(', ')}',
       );
     }
-    buffer.writeln('comma basis:');
-    for (final comma in result.commaBasis) {
-      buffer.writeln('[${comma.vector.join(' ')}] ${comma.ratio}');
+    if (_shows(TemperamentInfoField.commaBasis)) {
+      buffer.writeln('comma basis:');
+      for (final comma in result.commaBasis) {
+        buffer.writeln('[${comma.vector.join(' ')}] ${comma.ratio}');
+      }
     }
-    buffer.writeln(
-      '${result.equalDivisionsLabel}: '
-      '${result.equalDivisions.join(', ')}',
-    );
-    if (result.equalDivisionJoinLabel != null &&
+    if (_shows(TemperamentInfoField.equalDivisions)) {
+      buffer.writeln(
+        '${result.equalDivisionsLabel}: '
+        '${result.equalDivisions.join(', ')}',
+      );
+    }
+    if (_shows(TemperamentInfoField.equalDivisionJoin) &&
+        result.equalDivisionJoinLabel != null &&
         result.equalDivisionJoin != null) {
       buffer.writeln(
         '${result.equalDivisionJoinLabel}: ${result.equalDivisionJoin}',
       );
     }
-    buffer.writeln('mapping:');
-    if (result.mapping.isNotEmpty) {
-      buffer.writeln(formatMatrixText(result.mapping));
+    if (_shows(TemperamentInfoField.mapping)) {
+      buffer.writeln('mapping:');
+      if (result.mapping.isNotEmpty) {
+        buffer.writeln(formatMatrixText(result.mapping));
+      }
     }
     for (var index = 0; index < result.preimage.length; index++) {
-      buffer.writeln(
-        '${_indexedLabel('preimage', index, result.preimage.length)}: '
-        '${result.preimage[index]}',
-      );
+      if (_shows(TemperamentInfoField.preimage)) {
+        buffer.writeln(
+          '${_indexedLabel('preimage', index, result.preimage.length)}: '
+          '${result.preimage[index]}',
+        );
+      }
       for (final entry in result.tunings.entries) {
-        if (index < entry.value.length) {
+        if (_showsMetric(entry.key, TemperamentInfoField.tunings) &&
+            index < entry.value.length) {
           buffer.writeln(
             '${_indexedLabel(entry.key, index, result.preimage.length)}: '
-            '${entry.value[index]}',
+            '${_formatDecimal(entry.value[index], widget.settings.tuningDecimalPlaces)}',
           );
         }
       }
     }
-    for (final section in [result.errors, result.primes]) {
-      for (final entry in section.entries) {
+    for (final entry in result.errors.entries) {
+      if (_showsMetric(entry.key, TemperamentInfoField.errors)) {
         buffer.writeln('${entry.key}:');
         for (final value in entry.value) {
-          buffer.writeln(value);
+          buffer.writeln(
+            _formatDecimal(value, widget.settings.errorsDecimalPlaces),
+          );
         }
       }
     }
-    buffer.writeln('badness: ${result.badness}');
-    buffer.writeln('complexity: ${result.complexity}');
+    for (final entry in result.primes.entries) {
+      if (_showsMetric(entry.key, TemperamentInfoField.primes)) {
+        buffer.writeln('${entry.key}:');
+        for (final value in entry.value) {
+          buffer.writeln(
+            _formatDecimal(value, widget.settings.primesDecimalPlaces),
+          );
+        }
+      }
+    }
+    if (_shows(TemperamentInfoField.badness)) {
+      buffer.writeln(
+        'badness: ${_formatDecimal(result.badness, widget.settings.badnessDecimalPlaces)}',
+      );
+    }
+    if (_shows(TemperamentInfoField.complexity)) {
+      buffer.writeln('complexity: ${result.complexity}');
+    }
     await Clipboard.setData(ClipboardData(text: buffer.toString().trimRight()));
     if (!context.mounted) return;
     ScaffoldMessenger.of(
@@ -86,7 +186,7 @@ class _ResultPageState extends State<ResultPage> {
   }
 
   Future<void> _toggleFavorite() async {
-    final favorite = widget.favorite;
+    final favorite = this.favorite;
     final favorites = widget.favorites;
     if (favorite == null || favorites == null || _savingFavorite) return;
     setState(() => _savingFavorite = true);
@@ -112,6 +212,11 @@ class _ResultPageState extends State<ResultPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget._initialResult == null && _loadedResult == null) {
+      return _LoadingResultScaffold(error: _loadError, onRetry: _loadResult);
+    }
+
+    final favorite = this.favorite;
     final familyText = [
       ...result.families,
       ...result.weakFamilies.map((name) => '($name)'),
@@ -126,12 +231,14 @@ class _ResultPageState extends State<ResultPage> {
         index,
     };
     final rows = <_ResultRow>[
-      _ResultRow(label: 'rank', value: _TextValue('${result.rank}')),
-      _ResultRow(
-        label: 'subgroup',
-        value: _TextValue(result.subgroup, monospace: true),
-      ),
-      if (familyText.isNotEmpty)
+      if (_shows(TemperamentInfoField.rank))
+        _ResultRow(label: 'rank', value: _TextValue('${result.rank}')),
+      if (_shows(TemperamentInfoField.subgroup))
+        _ResultRow(
+          label: 'subgroup',
+          value: _TextValue(result.subgroup, monospace: true),
+        ),
+      if (_shows(TemperamentInfoField.families) && familyText.isNotEmpty)
         _ResultRow(
           label: 'families',
           value: _WikiValue(
@@ -140,46 +247,66 @@ class _ResultPageState extends State<ResultPage> {
             familyLinks: true,
           ),
         ),
-      _ResultRow(
-        label: 'comma basis',
-        value: _CommaBasisView(commaBasis: result.commaBasis),
-      ),
-      _ResultRow(
-        label: result.equalDivisionsLabel,
-        value: _TextValue(result.equalDivisions.join(', '), monospace: true),
-      ),
-      if (result.equalDivisionJoinLabel != null &&
+      if (_shows(TemperamentInfoField.commaBasis))
+        _ResultRow(
+          label: 'comma basis',
+          value: _CommaBasisView(commaBasis: result.commaBasis),
+        ),
+      if (_shows(TemperamentInfoField.equalDivisions))
+        _ResultRow(
+          label: result.equalDivisionsLabel,
+          value: _TextValue(result.equalDivisions.join(', '), monospace: true),
+        ),
+      if (_shows(TemperamentInfoField.equalDivisionJoin) &&
+          result.equalDivisionJoinLabel != null &&
           result.equalDivisionJoin != null)
         _ResultRow(
           label: result.equalDivisionJoinLabel!,
           value: _TextValue(result.equalDivisionJoin!, monospace: true),
         ),
-      _ResultRow(
-        label: 'mapping',
-        value: MatrixView(rows: result.mapping),
-      ),
+      if (_shows(TemperamentInfoField.mapping))
+        _ResultRow(
+          label: 'mapping',
+          value: MatrixView(rows: result.mapping),
+        ),
       ..._preimageTuningRows(),
-      ..._valueRows(result.errors),
-      ..._valueRows(result.primes),
-      _ResultRow(
-        label: 'badness',
-        value: _TextValue(result.badness, monospace: true),
+      ..._valueRows(
+        result.errors,
+        widget.settings.errorsDecimalPlaces,
+        TemperamentInfoField.errors,
       ),
-      _ResultRow(
-        label: 'complexity',
-        value: _TextValue(result.complexity, monospace: true),
+      ..._valueRows(
+        result.primes,
+        widget.settings.primesDecimalPlaces,
+        TemperamentInfoField.primes,
       ),
+      if (_shows(TemperamentInfoField.badness))
+        _ResultRow(
+          label: 'badness',
+          value: _TextValue(
+            _formatDecimal(
+              result.badness,
+              widget.settings.badnessDecimalPlaces,
+            ),
+            monospace: true,
+          ),
+        ),
+      if (_shows(TemperamentInfoField.complexity))
+        _ResultRow(
+          label: 'complexity',
+          value: _TextValue(result.complexity, monospace: true),
+        ),
     ];
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Temperament info'),
         actions: [
-          if (widget.favorite != null && widget.favorites != null)
+          if (favorite != null && widget.favorites != null)
             AnimatedBuilder(
               animation: widget.favorites!,
               builder: (context, _) {
-                final saved = widget.favorites!.contains(widget.favorite!.id);
+                final saved = widget.favorites!.contains(favorite.id);
                 return IconButton(
                   key: const ValueKey('favorite-result'),
                   tooltip: saved ? 'Remove from favorites' : 'Add to favorites',
@@ -212,34 +339,120 @@ class _ResultPageState extends State<ResultPage> {
     );
   }
 
-  List<_ResultRow> _valueRows(Map<String, List<String>> values) => [
+  List<_ResultRow> _valueRows(
+    Map<String, List<String>> values,
+    int decimalPlaces,
+    TemperamentInfoField field,
+  ) => [
     for (final entry in values.entries)
-      _ResultRow(
-        label: entry.key,
-        value: _TextValue(entry.value.join('\n'), monospace: true),
-      ),
+      if (_showsMetric(entry.key, field))
+        _ResultRow(
+          label: entry.key,
+          value: _TextValue(
+            entry.value
+                .map((value) => _formatDecimal(value, decimalPlaces))
+                .join('\n'),
+            monospace: true,
+          ),
+        ),
   ];
 
   List<_ResultRow> _preimageTuningRows() {
     final rows = <_ResultRow>[];
     for (var index = 0; index < result.preimage.length; index++) {
-      rows.add(
-        _ResultRow(
-          label: _indexedLabel('preimage', index, result.preimage.length),
-          value: _WikiLink(label: result.preimage[index], monospace: true),
-        ),
-      );
+      if (_shows(TemperamentInfoField.preimage)) {
+        rows.add(
+          _ResultRow(
+            label: _indexedLabel('preimage', index, result.preimage.length),
+            value: _WikiLink(label: result.preimage[index], monospace: true),
+          ),
+        );
+      }
       for (final entry in result.tunings.entries) {
-        if (index >= entry.value.length) continue;
+        if (!_showsMetric(entry.key, TemperamentInfoField.tunings) ||
+            index >= entry.value.length) {
+          continue;
+        }
         rows.add(
           _ResultRow(
             label: _indexedLabel(entry.key, index, result.preimage.length),
-            value: _TextValue(entry.value[index], monospace: true),
+            value: _TextValue(
+              _formatDecimal(
+                entry.value[index],
+                widget.settings.tuningDecimalPlaces,
+              ),
+              monospace: true,
+            ),
           ),
         );
       }
     }
     return rows;
+  }
+}
+
+class _LoadingResultScaffold extends StatelessWidget {
+  const _LoadingResultScaffold({required this.error, required this.onRetry});
+
+  final Object? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Temperament info')),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: error == null
+                ? const Column(
+                    key: ValueKey('temperament-info-loading'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox.square(
+                        dimension: 28,
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                      ),
+                      SizedBox(height: 14),
+                      Text('Loading'),
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 32,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Could not load temperament info',
+                        style: Theme.of(context).textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        error.toString(),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      FilledButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

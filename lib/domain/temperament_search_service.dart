@@ -11,11 +11,7 @@ import 'metrics.dart';
 import 'models.dart';
 import 'temperament_builder.dart';
 
-const _maximumSearchDimension = 24;
-const _searchIterations = 12;
 const _maximumCommaCoefficient = 2000;
-const _maximumEdo = 2000;
-const _maximumExploredEdo = 4000;
 const _combinationBudget = 320;
 
 class TemperamentSearchService {
@@ -58,12 +54,12 @@ class TemperamentSearchService {
 
     final rank = initialMap.rowCount;
     final dimension = initialMap.columnCount;
-    if (dimension > _maximumSearchDimension) {
-      return const TemperamentSearchResult(
+    if (dimension > input.parameters.maximumDimension) {
+      return TemperamentSearchResult(
         groups: [],
         warning:
             'Search is limited to subgroup dimensions of '
-            '$_maximumSearchDimension or less',
+            '${input.parameters.maximumDimension} or less',
       );
     }
 
@@ -128,7 +124,11 @@ class TemperamentSearchService {
       var factor = 8.0 * subgroupSize;
       final growth = math.min(1.4 * math.pow(1.1, dimension - 1), 2.0);
       final commas = <_SearchEntry>[];
-      for (var iteration = 0; iteration < _searchIterations; iteration++) {
+      for (
+        var iteration = 0;
+        iteration < input.parameters.explorationIterations;
+        iteration++
+      ) {
         try {
           final metric = _symmetric(
             projectedSubgroupMetric(
@@ -167,7 +167,7 @@ class TemperamentSearchService {
       }
       commas.sort((left, right) => left.badness.compareTo(right.badness));
       final maximumPerRank = math.max(
-        20,
+        input.parameters.resultsPerRank,
         _combinationBudget ~/ math.max(1, dimension - 2),
       );
       for (var commaCount = 2; commaCount < dimension - rank; commaCount++) {
@@ -211,7 +211,11 @@ class TemperamentSearchService {
       final growth = 1.4 * math.pow(1.1, dimension - 1);
       var lattice = initialMap;
       final edos = <_SearchEntry>[];
-      for (var iteration = 0; iteration < _searchIterations; iteration++) {
+      for (
+        var iteration = 0;
+        iteration < input.parameters.explorationIterations;
+        iteration++
+      ) {
         try {
           final metric = _symmetric(
             projectedSubgroupMetric(
@@ -231,12 +235,13 @@ class TemperamentSearchService {
         factor *= growth;
         final found = _absolute(lattice);
         if (found.values.any(
-          (row) => row.first > BigInt.from(_maximumExploredEdo),
+          (row) => row.first > BigInt.from(input.parameters.maximumEdo * 2),
         )) {
           break;
         }
         for (final row in found.values) {
-          if (row.first < BigInt.two || row.first > BigInt.from(_maximumEdo)) {
+          if (row.first < BigInt.two ||
+              row.first > BigInt.from(input.parameters.maximumEdo)) {
             continue;
           }
           final mapping = IntMatrix.fromRows([row]);
@@ -253,7 +258,7 @@ class TemperamentSearchService {
       }
       edos.sort((left, right) => left.badness.compareTo(right.badness));
       final maximumPerRank = math.max(
-        20,
+        input.parameters.resultsPerRank,
         _combinationBudget ~/ math.max(1, rank - 2),
       );
       for (var candidateRank = 2; candidateRank < rank; candidateRank++) {
@@ -289,13 +294,9 @@ class TemperamentSearchService {
     for (final candidateRank in byRank.keys.toList()..sort()) {
       final entries = byRank[candidateRank]!
         ..sort((left, right) => left.badness.compareTo(right.badness));
-      var maximumResults = 10;
-      if (candidateRank <= 2) maximumResults = 24;
-      if (candidateRank == 3) maximumResults = 20;
-      if (candidateRank == dimension - 1) maximumResults = 24;
       final candidates = <SearchCandidate>[];
       for (final entry in entries) {
-        if (candidates.length >= maximumResults) break;
+        if (candidates.length >= input.parameters.resultsPerRank) break;
         if (factorOrder(entry.mapping) > BigInt.one) continue;
         final mapHeight = height(
           DoubleMatrix.fromIntMatrix(entry.mapping),

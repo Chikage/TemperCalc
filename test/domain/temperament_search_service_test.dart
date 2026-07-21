@@ -10,6 +10,7 @@ void main() {
     required BadnessType badness,
     String edos = '',
     String commas = '',
+    SearchParameters parameters = const SearchParameters(),
   }) => SearchInput(
     subgroup: subgroup,
     badness: badness,
@@ -17,6 +18,7 @@ void main() {
     weight: TuningWeight.weil,
     edos: edos,
     commas: commas,
+    parameters: parameters,
   );
 
   test('combination iterator follows upstream sum order', () {
@@ -95,4 +97,26 @@ void main() {
       expect(oversized.warning, contains('24'));
     },
   );
+
+  test('honors configurable dimension and per-rank result limits', () {
+    final limitedDimension = service.search(
+      input(
+        subgroup: '7',
+        badness: BadnessType.cangwu,
+        parameters: const SearchParameters(maximumDimension: 3),
+      ),
+    );
+    expect(limitedDimension.groups, isEmpty);
+    expect(limitedDimension.warning, contains('3'));
+
+    final limitedResults = service.search(
+      input(
+        subgroup: '5',
+        badness: BadnessType.cangwu,
+        edos: '12',
+        parameters: const SearchParameters(resultsPerRank: 2),
+      ),
+    );
+    expect(limitedResults.groups.single.candidates, hasLength(2));
+  });
 }

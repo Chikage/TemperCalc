@@ -60,7 +60,7 @@ class TemperCalcApp extends StatelessWidget {
   Future<TemperamentSearchResult> _search(SearchInput input) => _runWorker(
     _searchWorker,
     input,
-    timeout: const Duration(seconds: 15),
+    timeout: Duration(seconds: input.parameters.timeoutSeconds),
     timeoutMessage: 'Search took too long',
   );
 

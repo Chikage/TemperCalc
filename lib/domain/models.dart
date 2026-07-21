@@ -64,6 +64,7 @@ class SearchInput {
     required this.weight,
     this.edos = '',
     this.commas = '',
+    this.parameters = const SearchParameters(),
   });
 
   final String subgroup;
@@ -72,6 +73,41 @@ class SearchInput {
   final TuningWeight weight;
   final String edos;
   final String commas;
+  final SearchParameters parameters;
+}
+
+class SearchParameters {
+  const SearchParameters({
+    this.maximumDimension = 24,
+    this.maximumEdo = 2000,
+    this.explorationIterations = 12,
+    this.resultsPerRank = 24,
+    this.timeoutSeconds = 15,
+  }) : assert(maximumDimension >= 2),
+       assert(maximumEdo >= 2),
+       assert(explorationIterations >= 1),
+       assert(resultsPerRank >= 1),
+       assert(timeoutSeconds >= 1);
+
+  final int maximumDimension;
+  final int maximumEdo;
+  final int explorationIterations;
+  final int resultsPerRank;
+  final int timeoutSeconds;
+
+  SearchParameters copyWith({
+    int? maximumDimension,
+    int? maximumEdo,
+    int? explorationIterations,
+    int? resultsPerRank,
+    int? timeoutSeconds,
+  }) => SearchParameters(
+    maximumDimension: maximumDimension ?? this.maximumDimension,
+    maximumEdo: maximumEdo ?? this.maximumEdo,
+    explorationIterations: explorationIterations ?? this.explorationIterations,
+    resultsPerRank: resultsPerRank ?? this.resultsPerRank,
+    timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
+  );
 }
 
 class CommaInfo {

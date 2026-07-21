@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/favorites_store.dart';
+import '../domain/app_settings.dart';
 import '../domain/favorite.dart';
 import '../domain/models.dart';
 import 'app_callbacks.dart' as callbacks;
@@ -13,6 +14,7 @@ class SearchPage extends StatefulWidget {
     required this.onCalculate,
     required this.onSearch,
     this.favorites,
+    this.settings = const AppSettings(),
     super.key,
   });
 
@@ -20,6 +22,7 @@ class SearchPage extends StatefulWidget {
   final callbacks.CalculateCallback onCalculate;
   final callbacks.SearchCallback onSearch;
   final FavoritesController? favorites;
+  final AppSettings settings;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -78,6 +81,7 @@ class _SearchPageState extends State<SearchPage>
         weight: _weight,
         edos: _edos.text,
         commas: _commas.text,
+        parameters: widget.settings.searchParameters,
       );
       final result = await widget.onSearch(input);
       if (mounted) {
@@ -102,27 +106,23 @@ class _SearchPageState extends State<SearchPage>
     if (searchInput == null) return;
     setState(() => _openingCandidate = candidate);
     try {
-      final result = await widget.onCalculate(
-        CalculatorInput(
-          subgroup: searchInput.subgroup,
-          source: candidate.source,
-          reduction: searchInput.reduction,
-          weight: searchInput.weight,
-          edos: candidate.source == CalculationSource.edos
-              ? candidate.label
-              : '',
-          commas: candidate.source == CalculationSource.commas
-              ? candidate.label
-              : '',
-        ),
+      final input = CalculatorInput(
+        subgroup: searchInput.subgroup,
+        source: candidate.source,
+        reduction: searchInput.reduction,
+        weight: searchInput.weight,
+        edos: candidate.source == CalculationSource.edos ? candidate.label : '',
+        commas: candidate.source == CalculationSource.commas
+            ? candidate.label
+            : '',
       );
-      if (!mounted || !widget.active) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => ResultPage(
-            result: result,
+          builder: (_) => ResultPage.loading(
+            loadResult: () => widget.onCalculate(input),
             favorites: widget.favorites,
-            favorite: FavoriteEntry.fromSearch(
+            settings: widget.settings,
+            favoriteBuilder: (result) => FavoriteEntry.fromSearch(
               input: searchInput,
               candidate: candidate,
               result: result,
@@ -344,7 +344,6 @@ class _SearchResultsTable extends StatelessWidget {
             _CandidateTableRow(
               candidate: candidates[index],
               busy: openingCandidate != null,
-              loading: identical(openingCandidate, candidates[index]),
               showBottomBorder: index != candidates.length - 1,
               divider: divider,
               onTap: () => onOpen(candidates[index]),
@@ -359,7 +358,6 @@ class _CandidateTableRow extends StatelessWidget {
   const _CandidateTableRow({
     required this.candidate,
     required this.busy,
-    required this.loading,
     required this.showBottomBorder,
     required this.divider,
     required this.onTap,
@@ -367,7 +365,6 @@ class _CandidateTableRow extends StatelessWidget {
 
   final SearchCandidate candidate;
   final bool busy;
-  final bool loading;
   final bool showBottomBorder;
   final BorderSide divider;
   final VoidCallback onTap;
@@ -396,43 +393,18 @@ class _CandidateTableRow extends StatelessWidget {
               : null,
           child: _ResultColumns(
             divider: divider,
-            result: Stack(
-              fit: StackFit.passthrough,
-              children: [
-                Tooltip(
-                  message: candidate.label,
-                  child: Text(
-                    candidate.label,
-                    softWrap: true,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontFamily: 'monospace',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+            result: Tooltip(
+              message: candidate.label,
+              child: Text(
+                candidate.label,
+                softWrap: true,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                 ),
-                if (loading)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: ColoredBox(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerLowest,
-                      child: const SizedBox(
-                        width: 20,
-                        child: Center(
-                          child: SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
             families: Text(
               candidate.families.isEmpty ? '-' : candidate.families.join(', '),

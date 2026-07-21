@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../data/favorites_store.dart';
+import '../domain/app_settings.dart';
 import '../domain/favorite.dart';
 import 'result_page.dart';
 
 class FavoritesPage extends StatefulWidget {
-  const FavoritesPage({required this.favorites, super.key});
+  const FavoritesPage({
+    required this.favorites,
+    this.settings = const AppSettings(),
+    super.key,
+  });
 
   final FavoritesController favorites;
+  final AppSettings settings;
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
@@ -38,6 +44,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           result: favorite.result,
           favorite: favorite,
           favorites: favorites,
+          settings: widget.settings,
         ),
       ),
     );

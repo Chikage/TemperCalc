@@ -412,7 +412,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('only one search candidate can open at a time', (tester) async {
+  testWidgets('search candidate loads on the temperament info page', (
+    tester,
+  ) async {
     final calculation = Completer<TemperamentInfo>();
     var calculateCalls = 0;
     await _pumpApp(
@@ -437,12 +439,36 @@ void main() {
     );
     await tester.tap(find.text('81/80'));
     await tester.pump();
-    await tester.tap(find.text('128/125'));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
     expect(calculateCalls, 1);
+    expect(find.text('Temperament info'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('temperament-info-loading')),
+      findsOneWidget,
+    );
+    expect(find.text('Loading'), findsOneWidget);
+    expect(find.byType(MatrixView), findsNothing);
+
+    final tappedResult = find.byKey(
+      const ValueKey('search-result-2-81/80'),
+      skipOffstage: false,
+    );
+    expect(
+      find.descendant(
+        of: tappedResult,
+        matching: find.byType(CircularProgressIndicator, skipOffstage: false),
+      ),
+      findsNothing,
+    );
 
     calculation.complete(_result);
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('temperament-info-loading')),
+      findsNothing,
+    );
+    expect(find.byType(MatrixView), findsOneWidget);
   });
 
   testWidgets('hidden workflows do not push completed results', (tester) async {
