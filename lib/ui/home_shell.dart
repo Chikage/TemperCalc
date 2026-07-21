@@ -44,7 +44,7 @@ class _HomeShellState extends State<HomeShell> {
             onPressed: () => showAboutDialog(
               context: context,
               applicationName: 'Temper Calc',
-              applicationVersion: '1.0.2',
+              applicationVersion: '1.0.5 b6',
               applicationLegalese:
                   'Copyright (c) 2026 Shiryee Lin\nBased on Sin-tel/temper',
               applicationIcon: ClipRRect(

@@ -107,8 +107,25 @@ void main() {
 
     final definitionRect = tester.getRect(find.text('Definition'));
     final sourceSwitchRect = tester.getRect(find.text('EDOs'));
+    final targetLabelRect = tester.getRect(find.text('Target intervals'));
+    final edosLabelRect = tester.getRect(find.text('List of EDOs'));
+    final targetFieldRect = tester.getRect(
+      find.byKey(const ValueKey('calculator-target')),
+    );
+    final sourceSelectorRect = tester.getRect(
+      find.byKey(const ValueKey('definition-selector')),
+    );
+    final edosFieldRect = tester.getRect(
+      find.byKey(const ValueKey('calculator-edos')),
+    );
     expect(sourceSwitchRect.center.dy, closeTo(definitionRect.center.dy, 0.1));
     expect(sourceSwitchRect.left, greaterThan(definitionRect.left));
+    expect(definitionRect.left, closeTo(targetLabelRect.left, 0.1));
+    expect(definitionRect.left, closeTo(edosLabelRect.left, 0.1));
+    expect(
+      sourceSelectorRect.center.dy,
+      closeTo((targetFieldRect.bottom + edosFieldRect.top) / 2, 0.1),
+    );
 
     await tester.tap(find.text('Commas'));
     await tester.pumpAndSettle();

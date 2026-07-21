@@ -92,8 +92,22 @@ void main() {
     expect(find.text('Complexity'), findsNWidgets(2));
     expect(find.text('0.778'), findsOneWidget);
     expect(find.text('3.8'), findsOneWidget);
+    expect(
+      tester.getSize(find.text('12 & 19')).height,
+      greaterThan(tester.getSize(find.text('81/80')).height),
+    );
 
     final rankTwoTable = find.byKey(const ValueKey('search-results-table-2'));
+    for (final label in ['Results', 'Families', 'Badness', 'Complexity']) {
+      final heading = tester.widget<Text>(
+        find.descendant(of: rankTwoTable, matching: find.text(label)),
+      );
+      expect(heading.maxLines, 1);
+      expect(heading.softWrap, isFalse);
+      expect(heading.style?.fontSize, 12);
+      expect(heading.style?.letterSpacing, 0);
+    }
+
     final tableRect = tester.getRect(rankTwoTable);
     expect(tableRect.left, greaterThanOrEqualTo(0));
     expect(tableRect.right, lessThanOrEqualTo(320));

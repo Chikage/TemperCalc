@@ -25,7 +25,13 @@ class FormSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (stackHeader) ...[
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
               const SizedBox(height: 10),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -35,20 +41,20 @@ class FormSection extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 16),
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ),
                   ),
                   ?trailing,
                 ],
               ),
-            if (child case final child?) ...[
-              const SizedBox(height: 10),
-              child,
-            ],
+            if (child case final child?) ...[const SizedBox(height: 10), child],
           ],
         );
       },

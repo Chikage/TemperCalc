@@ -162,6 +162,7 @@ class _SearchPageState extends State<SearchPage>
                     FormSection(
                       title: 'Badness',
                       trailing: SegmentedButton<BadnessType>(
+                        key: const ValueKey('badness-selector'),
                         segments: [
                           for (final value in BadnessType.values)
                             ButtonSegment(
@@ -177,6 +178,7 @@ class _SearchPageState extends State<SearchPage>
                     ),
                     const SizedBox(height: 16),
                     CalculationOptions(
+                      key: const ValueKey('search-calculation-options'),
                       reduction: _reduction,
                       weight: _weight,
                       onReductionChanged: (value) =>
@@ -380,34 +382,42 @@ class _CandidateTableRow extends StatelessWidget {
               : null,
           child: _ResultColumns(
             divider: divider,
-            result: Row(
+            result: Stack(
+              fit: StackFit.passthrough,
               children: [
-                Expanded(
-                  child: Tooltip(
-                    message: candidate.label,
-                    child: Text(
-                      candidate.label,
-                      softWrap: true,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.w700,
-                      ),
+                Tooltip(
+                  message: candidate.label,
+                  child: Text(
+                    candidate.label,
+                    softWrap: true,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontFamily: 'monospace',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 20,
-                  child: loading
-                      ? const Padding(
-                          padding: EdgeInsets.only(left: 4),
+                if (loading)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: ColoredBox(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerLowest,
+                      child: const SizedBox(
+                        width: 20,
+                        child: Center(
                           child: SizedBox.square(
                             dimension: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                        )
-                      : null,
-                ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
             families: Text(
@@ -442,23 +452,27 @@ class _ResultColumns extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 480;
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            flex: 25,
+            flex: compact ? 28 : 34,
             child: _ResultCell(divider: divider, child: result),
           ),
           Expanded(
-            flex: 31,
+            flex: compact ? 23 : 27,
             child: _ResultCell(divider: divider, child: families),
           ),
           Expanded(
-            flex: 20,
+            flex: compact ? 21 : 19,
             child: _ResultCell(divider: divider, child: badness),
           ),
-          Expanded(flex: 24, child: _ResultCell(child: complexity)),
+          Expanded(
+            flex: compact ? 28 : 20,
+            child: _ResultCell(child: complexity),
+          ),
         ],
       ),
     );
@@ -476,7 +490,7 @@ class _ResultCell extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 44),
       alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
       decoration: divider == null
           ? null
           : BoxDecoration(border: Border(right: divider!)),
@@ -495,15 +509,15 @@ class _TableHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
-        child: Text(
-          label,
-          maxLines: 1,
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+      child: Text(
+        label,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.clip,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0,
         ),
       ),
     );

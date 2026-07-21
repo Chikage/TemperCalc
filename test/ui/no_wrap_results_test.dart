@@ -92,7 +92,7 @@ void main() {
                   candidates: [
                     SearchCandidate(
                       rank: 2,
-                      label: '81/80',
+                      label: '19 & 53',
                       source: CalculationSource.commas,
                       families: [],
                       badness: 0.778,
@@ -110,7 +110,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Search'));
     await tester.pumpAndSettle();
 
-    final row = find.byKey(const ValueKey('search-result-2-81/80'));
+    final row = find.byKey(const ValueKey('search-result-2-19 & 53'));
     final before = tester.getSize(row);
     await tester.tap(row);
     await tester.pump();

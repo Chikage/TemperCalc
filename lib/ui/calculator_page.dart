@@ -154,6 +154,7 @@ class _CalculatorPageState extends State<CalculatorPage>
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
+                      key: const ValueKey('calculator-target'),
                       controller: _target,
                       decoration: const InputDecoration(
                         labelText: 'Target intervals',
@@ -161,10 +162,11 @@ class _CalculatorPageState extends State<CalculatorPage>
                       ),
                       textInputAction: TextInputAction.next,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     FormSection(
                       title: 'Definition',
                       trailing: SegmentedButton<CalculationSource>(
+                        key: const ValueKey('definition-selector'),
                         segments: const [
                           ButtonSegment(
                             value: CalculationSource.edos,
@@ -183,50 +185,49 @@ class _CalculatorPageState extends State<CalculatorPage>
                           setState(() => _source = values.single);
                         },
                       ),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: _source == CalculationSource.edos
-                            ? Container(
-                                key: _edosAnchor,
-                                child: TextFormField(
-                                  key: const ValueKey('calculator-edos'),
-                                  controller: _edos,
-                                  focusNode: _edosFocus,
-                                  decoration: const InputDecoration(
-                                    labelText: 'List of EDOs',
-                                    hintText: '12, 31  or  17c',
-                                  ),
-                                  validator: (value) =>
-                                      _source == CalculationSource.edos &&
-                                          (value == null ||
-                                              value.trim().isEmpty)
-                                      ? 'Enter at least one EDO'
-                                      : null,
-                                  onFieldSubmitted: (_) => _calculate(),
+                    ),
+                    const SizedBox(height: 16),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: _source == CalculationSource.edos
+                          ? Container(
+                              key: _edosAnchor,
+                              child: TextFormField(
+                                key: const ValueKey('calculator-edos'),
+                                controller: _edos,
+                                focusNode: _edosFocus,
+                                decoration: const InputDecoration(
+                                  labelText: 'List of EDOs',
+                                  hintText: '12, 31  or  17c',
                                 ),
-                              )
-                            : Container(
-                                key: _commasAnchor,
-                                child: TextFormField(
-                                  key: const ValueKey('calculator-commas'),
-                                  controller: _commas,
-                                  focusNode: _commasFocus,
-                                  minLines: 4,
-                                  maxLines: 7,
-                                  decoration: const InputDecoration(
-                                    labelText: 'List of commas',
-                                    hintText: '81/80, 225/224',
-                                    alignLabelWithHint: true,
-                                  ),
-                                  validator: (value) =>
-                                      _source == CalculationSource.commas &&
-                                          (value == null ||
-                                              value.trim().isEmpty)
-                                      ? 'Enter at least one comma'
-                                      : null,
-                                ),
+                                validator: (value) =>
+                                    _source == CalculationSource.edos &&
+                                        (value == null || value.trim().isEmpty)
+                                    ? 'Enter at least one EDO'
+                                    : null,
+                                onFieldSubmitted: (_) => _calculate(),
                               ),
-                      ),
+                            )
+                          : Container(
+                              key: _commasAnchor,
+                              child: TextFormField(
+                                key: const ValueKey('calculator-commas'),
+                                controller: _commas,
+                                focusNode: _commasFocus,
+                                minLines: 4,
+                                maxLines: 7,
+                                decoration: const InputDecoration(
+                                  labelText: 'List of commas',
+                                  hintText: '81/80, 225/224',
+                                  alignLabelWithHint: true,
+                                ),
+                                validator: (value) =>
+                                    _source == CalculationSource.commas &&
+                                        (value == null || value.trim().isEmpty)
+                                    ? 'Enter at least one comma'
+                                    : null,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 20),
                     SubmitButton(
