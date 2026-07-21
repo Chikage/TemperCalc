@@ -19,6 +19,7 @@ void main() {
         errorsDecimalPlaces: 4,
         primesDecimalPlaces: 6,
         badnessDecimalPlaces: 8,
+        complexityDecimalPlaces: 10,
         visibleTemperamentInfoFields: {
           TemperamentInfoField.rank,
           TemperamentInfoField.mapping,
@@ -36,6 +37,7 @@ void main() {
       expect(decoded.errorsDecimalPlaces, 4);
       expect(decoded.primesDecimalPlaces, 6);
       expect(decoded.badnessDecimalPlaces, 8);
+      expect(decoded.complexityDecimalPlaces, 10);
       expect(decoded.visibleTemperamentInfoFields, {
         TemperamentInfoField.rank,
         TemperamentInfoField.mapping,
@@ -52,6 +54,7 @@ void main() {
       'timeoutSeconds': 9999,
       'tuningDecimalPlaces': 99,
       'errorsDecimalPlaces': -1,
+      'complexityDecimalPlaces': 99,
     });
 
     expect(decoded.searchParameters.maximumDimension, 128);
@@ -61,6 +64,7 @@ void main() {
     expect(decoded.searchParameters.timeoutSeconds, 3600);
     expect(decoded.tuningDecimalPlaces, 12);
     expect(decoded.errorsDecimalPlaces, 0);
+    expect(decoded.complexityDecimalPlaces, 12);
   });
 
   test('older grouped visibility settings keep all matching result rows', () {

@@ -176,7 +176,9 @@ class _ResultPageState extends State<ResultPage> {
       );
     }
     if (_shows(TemperamentInfoField.complexity)) {
-      buffer.writeln('complexity: ${result.complexity}');
+      buffer.writeln(
+        'complexity: ${_formatDecimal(result.complexity, widget.settings.complexityDecimalPlaces)}',
+      );
     }
     await Clipboard.setData(ClipboardData(text: buffer.toString().trimRight()));
     if (!context.mounted) return;
@@ -294,7 +296,13 @@ class _ResultPageState extends State<ResultPage> {
       if (_shows(TemperamentInfoField.complexity))
         _ResultRow(
           label: 'complexity',
-          value: _TextValue(result.complexity, monospace: true),
+          value: _TextValue(
+            _formatDecimal(
+              result.complexity,
+              widget.settings.complexityDecimalPlaces,
+            ),
+            monospace: true,
+          ),
         ),
     ];
 

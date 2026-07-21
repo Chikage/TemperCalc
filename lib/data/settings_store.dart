@@ -98,6 +98,7 @@ Map<String, Object?> settingsToJson(AppSettings settings) => {
   'errorsDecimalPlaces': settings.errorsDecimalPlaces,
   'primesDecimalPlaces': settings.primesDecimalPlaces,
   'badnessDecimalPlaces': settings.badnessDecimalPlaces,
+  'complexityDecimalPlaces': settings.complexityDecimalPlaces,
   'visibleTemperamentInfoFields': [
     for (final field in settings.visibleTemperamentInfoFields) field.name,
   ],
@@ -152,6 +153,7 @@ AppSettings settingsFromJson(Map<String, Object?> json) {
     errorsDecimalPlaces: integer('errorsDecimalPlaces', 9, 0, 12),
     primesDecimalPlaces: integer('primesDecimalPlaces', 9, 0, 12),
     badnessDecimalPlaces: integer('badnessDecimalPlaces', 9, 0, 12),
+    complexityDecimalPlaces: integer('complexityDecimalPlaces', 9, 0, 12),
     visibleTemperamentInfoFields: Set.unmodifiable(visibleFields),
   );
 }

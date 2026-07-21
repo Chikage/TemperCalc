@@ -51,6 +51,7 @@ class AppSettings {
     this.errorsDecimalPlaces = 9,
     this.primesDecimalPlaces = 9,
     this.badnessDecimalPlaces = 9,
+    this.complexityDecimalPlaces = 9,
     this.visibleTemperamentInfoFields = const {
       TemperamentInfoField.rank,
       TemperamentInfoField.subgroup,
@@ -74,13 +75,15 @@ class AppSettings {
   }) : assert(tuningDecimalPlaces >= 0 && tuningDecimalPlaces <= 12),
        assert(errorsDecimalPlaces >= 0 && errorsDecimalPlaces <= 12),
        assert(primesDecimalPlaces >= 0 && primesDecimalPlaces <= 12),
-       assert(badnessDecimalPlaces >= 0 && badnessDecimalPlaces <= 12);
+       assert(badnessDecimalPlaces >= 0 && badnessDecimalPlaces <= 12),
+       assert(complexityDecimalPlaces >= 0 && complexityDecimalPlaces <= 12);
 
   final SearchParameters searchParameters;
   final int tuningDecimalPlaces;
   final int errorsDecimalPlaces;
   final int primesDecimalPlaces;
   final int badnessDecimalPlaces;
+  final int complexityDecimalPlaces;
   final Set<TemperamentInfoField> visibleTemperamentInfoFields;
 
   bool shows(TemperamentInfoField field) =>
@@ -92,6 +95,7 @@ class AppSettings {
     int? errorsDecimalPlaces,
     int? primesDecimalPlaces,
     int? badnessDecimalPlaces,
+    int? complexityDecimalPlaces,
     Set<TemperamentInfoField>? visibleTemperamentInfoFields,
   }) => AppSettings(
     searchParameters: searchParameters ?? this.searchParameters,
@@ -99,6 +103,8 @@ class AppSettings {
     errorsDecimalPlaces: errorsDecimalPlaces ?? this.errorsDecimalPlaces,
     primesDecimalPlaces: primesDecimalPlaces ?? this.primesDecimalPlaces,
     badnessDecimalPlaces: badnessDecimalPlaces ?? this.badnessDecimalPlaces,
+    complexityDecimalPlaces:
+        complexityDecimalPlaces ?? this.complexityDecimalPlaces,
     visibleTemperamentInfoFields:
         visibleTemperamentInfoFields ?? this.visibleTemperamentInfoFields,
   );

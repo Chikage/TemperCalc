@@ -254,11 +254,13 @@ void main() {
       errorsDecimalPlaces: 3,
       primesDecimalPlaces: 4,
       badnessDecimalPlaces: 1,
+      complexityDecimalPlaces: 5,
       visibleTemperamentInfoFields: {
         TemperamentInfoField.tunings,
         TemperamentInfoField.errors,
         TemperamentInfoField.primes,
         TemperamentInfoField.badness,
+        TemperamentInfoField.complexity,
       },
     );
 
@@ -279,7 +281,8 @@ void main() {
     expect(find.text('1.236'), findsOneWidget);
     expect(find.text('1201.2360'), findsOneWidget);
     expect(find.text('0.3'), findsOneWidget);
-    expect(find.text('complexity'), findsNothing);
+    expect(find.text('complexity'), findsOneWidget);
+    expect(find.text('3.80000'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

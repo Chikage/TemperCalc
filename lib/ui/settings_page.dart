@@ -141,6 +141,16 @@ class SettingsPage extends StatelessWidget {
                           settings.copyWith(badnessDecimalPlaces: value),
                         ),
                       ),
+                      _IntegerSetting(
+                        key: const ValueKey('setting-complexity-decimals'),
+                        label: 'Complexity',
+                        value: settings.complexityDecimalPlaces,
+                        minimum: 0,
+                        maximum: 12,
+                        onChanged: (value) => controller.update(
+                          settings.copyWith(complexityDecimalPlaces: value),
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       const _SectionTitle('Temperament info'),
                       for (final field in TemperamentInfoField.values)
