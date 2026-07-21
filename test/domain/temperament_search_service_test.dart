@@ -119,4 +119,71 @@ void main() {
     );
     expect(limitedResults.groups.single.candidates, hasLength(2));
   });
+
+  test(
+    'parallel search matches serial results across independent ranks',
+    () async {
+      const parallel = ParallelTemperamentSearchService(maximumWorkers: 2);
+      final inputs = [
+        input(subgroup: '7', badness: BadnessType.cangwu, edos: '12'),
+        input(subgroup: '7', badness: BadnessType.dirichlet, commas: '81/80'),
+      ];
+
+      for (final searchInput in inputs) {
+        final serialResult = service.search(searchInput);
+        final parallelResult = await parallel.search(
+          searchInput,
+          timeout: const Duration(seconds: 10),
+        );
+        expect(_resultSnapshot(parallelResult), _resultSnapshot(serialResult));
+      }
+    },
+  );
+
+  test('parallel search can time out and run again', () async {
+    const parallel = ParallelTemperamentSearchService(maximumWorkers: 2);
+    final searchInput = input(
+      subgroup: '89',
+      badness: BadnessType.cangwu,
+      parameters: const SearchParameters(explorationIterations: 1000),
+    );
+
+    await expectLater(
+      parallel.search(searchInput, timeout: Duration.zero),
+      throwsA(
+        isA<TemperamentException>().having(
+          (error) => error.message,
+          'message',
+          'Search took too long',
+        ),
+      ),
+    );
+
+    final recovered = await parallel.search(
+      input(subgroup: '3', badness: BadnessType.cangwu, edos: '12'),
+      timeout: const Duration(seconds: 5),
+    );
+    expect(recovered.warning, 'Empty search');
+  });
 }
+
+Object _resultSnapshot(TemperamentSearchResult result) => {
+  'warning': result.warning,
+  'groups': [
+    for (final group in result.groups)
+      {
+        'rank': group.rank,
+        'candidates': [
+          for (final candidate in group.candidates)
+            {
+              'rank': candidate.rank,
+              'label': candidate.label,
+              'source': candidate.source.name,
+              'families': candidate.families,
+              'badness': candidate.badness,
+              'complexity': candidate.complexity,
+            },
+        ],
+      },
+  ],
+};

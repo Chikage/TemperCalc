@@ -89,12 +89,11 @@ class _TemperCalcAppState extends State<TemperCalcApp> {
     timeoutMessage: 'Calculation took too long',
   );
 
-  Future<TemperamentSearchResult> _search(SearchInput input) => _runWorker(
-    _searchWorker,
-    input,
-    timeout: Duration(seconds: input.parameters.timeoutSeconds),
-    timeoutMessage: 'Search took too long',
-  );
+  Future<TemperamentSearchResult> _search(SearchInput input) =>
+      const ParallelTemperamentSearchService().search(
+        input,
+        timeout: Duration(seconds: input.parameters.timeoutSeconds),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -124,15 +123,6 @@ class _TemperCalcAppState extends State<TemperCalcApp> {
 void _calculateWorker((SendPort, CalculatorInput) message) {
   try {
     final result = const TemperamentInfoService().calculate(message.$2);
-    message.$1.send([true, result]);
-  } catch (error) {
-    message.$1.send([false, error.toString()]);
-  }
-}
-
-void _searchWorker((SendPort, SearchInput) message) {
-  try {
-    final result = const TemperamentSearchService().search(message.$2);
     message.$1.send([true, result]);
   } catch (error) {
     message.$1.send([false, error.toString()]);
