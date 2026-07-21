@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:temper_calc/data/favorites_store.dart';
+import 'package:temper_calc/data/favorites_transfer.dart';
+import 'package:temper_calc/domain/favorite.dart';
 import 'package:temper_calc/domain/models.dart';
 import 'package:temper_calc/ui/app_theme.dart';
 import 'package:temper_calc/ui/home_shell.dart';
@@ -179,7 +182,9 @@ void main() {
         matching: find.byType(SelectableText),
       ),
     );
-    expect(matrixText.data, ' 1   1   0  -3\n 0   1   4  10');
+    expect(matrixText.data, '1  1  0  -3\n0  1  4  10');
+    expect(find.byKey(const ValueKey('mapping-left-bracket')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mapping-right-bracket')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -237,6 +242,131 @@ void main() {
     expect(openedCandidate!.weight, TuningWeight.weil);
     expect(find.text('Temperament info'), findsOneWidget);
     expect(find.byType(MatrixView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('calculator result can be saved, opened, and removed', (
+    tester,
+  ) async {
+    final controller = FavoritesController(_MemoryFavoritesStorage());
+    addTearDown(controller.dispose);
+    await _pumpApp(tester, favoritesController: controller);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('calculator-subgroup')),
+      '5',
+    );
+    await tester.enterText(find.byKey(const ValueKey('calculator-edos')), '12');
+    final calculateButton = find.widgetWithText(FilledButton, 'Calculate');
+    await tester.ensureVisible(calculateButton);
+    await tester.tap(calculateButton);
+    await tester.pumpAndSettle();
+
+    final favoriteButton = find.byKey(const ValueKey('favorite-result'));
+    final copyButton = find.byTooltip('Copy result');
+    expect(favoriteButton, findsOneWidget);
+    expect(
+      tester.getCenter(favoriteButton).dx,
+      lessThan(tester.getCenter(copyButton).dx),
+    );
+
+    await tester.tap(favoriteButton);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Remove from favorites'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await _openFavorites(tester);
+    const title = '5 | EDOs 12 - Rank 2 | meantone | Badness 0.347';
+    expect(find.text(title), findsOneWidget);
+
+    await tester.tap(find.text(title));
+    await tester.pumpAndSettle();
+    expect(find.text('Temperament info'), findsOneWidget);
+    await tester.tap(find.byTooltip('Remove from favorites'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('No favorites yet'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('search result can be saved with its search summary', (
+    tester,
+  ) async {
+    final controller = FavoritesController(_MemoryFavoritesStorage());
+    addTearDown(controller.dispose);
+    await _pumpApp(tester, favoritesController: controller);
+    await _openSearch(tester);
+    await tester.enterText(find.byKey(const ValueKey('search-subgroup')), '5');
+    final searchButton = find.widgetWithText(FilledButton, 'Search');
+    await tester.ensureVisible(searchButton);
+    await tester.tap(searchButton);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('81/80'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('81/80'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('favorite-result')));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await _openFavorites(tester);
+
+    expect(
+      find.text('5 | Cangwu | 81/80 - Rank 2 | meantone | Badness 0.347'),
+      findsOneWidget,
+    );
+    expect(find.text('Search | Octave | WE'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('favorites can be imported and exported as JSON', (tester) async {
+    final imported = FavoriteEntry.fromCalculator(
+      input: const CalculatorInput(
+        subgroup: '5',
+        source: CalculationSource.edos,
+        reduction: GeneratorReduction.octave,
+        weight: TuningWeight.weil,
+        edos: '12',
+      ),
+      result: _result,
+      savedAt: DateTime.utc(2026, 7, 21),
+    );
+    final transfer = _MemoryFavoritesFileTransfer(
+      importSource: FavoritesArchive.encode([imported]),
+    );
+    final controller = FavoritesController(_MemoryFavoritesStorage());
+    addTearDown(controller.dispose);
+    await _pumpApp(
+      tester,
+      favoritesController: controller,
+      favoritesFileTransfer: transfer,
+    );
+    await _openFavorites(tester);
+
+    final exportBeforeImport = tester.widget<IconButton>(
+      find.byKey(const ValueKey('export-favorites')),
+    );
+    expect(exportBeforeImport.onPressed, isNull);
+    await tester.tap(find.byTooltip('Import favorites'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(imported.title), findsOneWidget);
+    expect(find.text('Imported 1 added'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Export favorites'));
+    await tester.pumpAndSettle();
+
+    expect(transfer.exportedFileName, startsWith('temper-calc-favorites-'));
+    expect(transfer.exportedFileName, endsWith('.json'));
+    final exported = FavoritesArchive.decode(transfer.exportedContents!);
+    expect(exported.single.id, imported.id);
+    expect(find.text('Exported 1 favorite'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -328,6 +458,9 @@ Future<void> _pumpApp(
   Future<TemperamentSearchResult> Function(SearchInput input)? onSearch,
   Size size = const Size(390, 844),
   TextScaler textScaler = TextScaler.noScaling,
+  FavoritesController? favoritesController,
+  FavoritesFileTransfer favoritesFileTransfer =
+      const FilePickerFavoritesFileTransfer(),
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -342,6 +475,8 @@ Future<void> _pumpApp(
         child: HomeShell(
           onCalculate: onCalculate ?? (_) async => _result,
           onSearch: onSearch ?? (_) async => _searchResult,
+          favoritesController: favoritesController,
+          favoritesFileTransfer: favoritesFileTransfer,
         ),
       ),
     ),
@@ -356,4 +491,46 @@ Future<void> _openSearch(WidgetTester tester) async {
   );
   await tester.tap(searchDestination);
   await tester.pumpAndSettle();
+}
+
+Future<void> _openFavorites(WidgetTester tester) async {
+  final favoritesDestination = find.descendant(
+    of: find.byType(NavigationBar),
+    matching: find.text('Favorites'),
+  );
+  await tester.tap(favoritesDestination);
+  await tester.pumpAndSettle();
+}
+
+class _MemoryFavoritesStorage implements FavoritesStorage {
+  List<FavoriteEntry> values = [];
+
+  @override
+  Future<List<FavoriteEntry>> load() async => List.of(values);
+
+  @override
+  Future<void> save(List<FavoriteEntry> favorites) async {
+    values = List.of(favorites);
+  }
+}
+
+class _MemoryFavoritesFileTransfer implements FavoritesFileTransfer {
+  _MemoryFavoritesFileTransfer({this.importSource});
+
+  final String? importSource;
+  String? exportedContents;
+  String? exportedFileName;
+
+  @override
+  Future<String?> pickArchive() async => importSource;
+
+  @override
+  Future<bool> saveArchive({
+    required String contents,
+    required String fileName,
+  }) async {
+    exportedContents = contents;
+    exportedFileName = fileName;
+    return true;
+  }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/favorites_store.dart';
+import '../domain/favorite.dart';
 import '../domain/models.dart';
 import 'app_callbacks.dart' as callbacks;
 import 'form_controls.dart';
@@ -10,12 +12,14 @@ class SearchPage extends StatefulWidget {
     required this.active,
     required this.onCalculate,
     required this.onSearch,
+    this.favorites,
     super.key,
   });
 
   final bool active;
   final callbacks.CalculateCallback onCalculate;
   final callbacks.SearchCallback onSearch;
+  final FavoritesController? favorites;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -114,7 +118,17 @@ class _SearchPageState extends State<SearchPage>
       );
       if (!mounted || !widget.active) return;
       await Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => ResultPage(result: result)),
+        MaterialPageRoute(
+          builder: (_) => ResultPage(
+            result: result,
+            favorites: widget.favorites,
+            favorite: FavoriteEntry.fromSearch(
+              input: searchInput,
+              candidate: candidate,
+              result: result,
+            ),
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted || !widget.active) return;

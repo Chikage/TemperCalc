@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/favorites_store.dart';
+import '../domain/favorite.dart';
 import '../domain/models.dart';
 import 'app_callbacks.dart';
 import 'form_controls.dart';
@@ -9,11 +11,13 @@ class CalculatorPage extends StatefulWidget {
   const CalculatorPage({
     required this.active,
     required this.onCalculate,
+    this.favorites,
     super.key,
   });
 
   final bool active;
   final CalculateCallback onCalculate;
+  final FavoritesController? favorites;
 
   @override
   State<CalculatorPage> createState() => _CalculatorPageState();
@@ -82,20 +86,28 @@ class _CalculatorPageState extends State<CalculatorPage>
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _loading = true);
     try {
-      final result = await widget.onCalculate(
-        CalculatorInput(
-          subgroup: _subgroup.text,
-          source: _source,
-          reduction: _reduction,
-          weight: _weight,
-          edos: _edos.text,
-          commas: _commas.text,
-          target: _target.text,
-        ),
+      final input = CalculatorInput(
+        subgroup: _subgroup.text,
+        source: _source,
+        reduction: _reduction,
+        weight: _weight,
+        edos: _edos.text,
+        commas: _commas.text,
+        target: _target.text,
       );
+      final result = await widget.onCalculate(input);
       if (!mounted || !widget.active) return;
       await Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => ResultPage(result: result)),
+        MaterialPageRoute(
+          builder: (_) => ResultPage(
+            result: result,
+            favorites: widget.favorites,
+            favorite: FavoriteEntry.fromCalculator(
+              input: input,
+              result: result,
+            ),
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted || !widget.active) return;

@@ -14,6 +14,17 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+
+    // file_picker assumes AGP 9's built-in Kotlin is enabled, while this app
+    // still uses Flutter's compatibility mode for its existing plugins.
+    if (name == "file_picker") {
+        pluginManager.apply("org.jetbrains.kotlin.android")
+        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
+            compilerOptions {
+                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            }
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")

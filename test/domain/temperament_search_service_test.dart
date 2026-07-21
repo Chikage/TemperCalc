@@ -65,17 +65,34 @@ void main() {
     );
   });
 
-  test('reports empty and oversized searches', () {
-    final empty = service.search(
-      input(subgroup: '3', badness: BadnessType.cangwu, edos: '12'),
-    );
-    expect(empty.groups, isEmpty);
-    expect(empty.warning, 'Empty search');
+  test(
+    'reports empty searches and supports subgroup dimensions through 24',
+    () {
+      final empty = service.search(
+        input(subgroup: '3', badness: BadnessType.cangwu, edos: '12'),
+      );
+      expect(empty.groups, isEmpty);
+      expect(empty.warning, 'Empty search');
 
-    final oversized = service.search(
-      input(subgroup: '73', badness: BadnessType.cangwu),
-    );
-    expect(oversized.groups, isEmpty);
-    expect(oversized.warning, contains('20'));
-  });
+      final largestSupported = service.search(
+        input(subgroup: '89', badness: BadnessType.cangwu),
+      );
+      expect(largestSupported.warning, isNull);
+      expect(largestSupported.groups, isNotEmpty);
+      expect(
+        largestSupported.groups.every((group) => group.candidates.isNotEmpty),
+        isTrue,
+      );
+      expect(
+        largestSupported.groups.any((group) => group.candidates.length > 12),
+        isTrue,
+      );
+
+      final oversized = service.search(
+        input(subgroup: '97', badness: BadnessType.cangwu),
+      );
+      expect(oversized.groups, isEmpty);
+      expect(oversized.warning, contains('24'));
+    },
+  );
 }

@@ -2,12 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/link.dart';
 
+import '../data/favorites_store.dart';
+import '../domain/favorite.dart';
 import '../domain/models.dart';
 
-class ResultPage extends StatelessWidget {
-  const ResultPage({required this.result, super.key});
+class ResultPage extends StatefulWidget {
+  const ResultPage({
+    required this.result,
+    this.favorite,
+    this.favorites,
+    super.key,
+  });
 
   final TemperamentInfo result;
+  final FavoriteEntry? favorite;
+  final FavoritesController? favorites;
+
+  @override
+  State<ResultPage> createState() => _ResultPageState();
+}
+
+class _ResultPageState extends State<ResultPage> {
+  bool _savingFavorite = false;
+
+  TemperamentInfo get result => widget.result;
 
   Future<void> _copy(BuildContext context) async {
     final buffer = StringBuffer()
@@ -22,19 +40,34 @@ class ResultPage extends StatelessWidget {
     for (final comma in result.commaBasis) {
       buffer.writeln('[${comma.vector.join(' ')}] ${comma.ratio}');
     }
-    buffer
-      ..writeln(
-        '${result.equalDivisionsLabel}: '
-        '${result.equalDivisions.join(', ')}',
-      )
-      ..writeln('mapping:');
-    for (final row in result.mapping) {
-      buffer.writeln('[${row.join(', ')}]');
+    buffer.writeln(
+      '${result.equalDivisionsLabel}: '
+      '${result.equalDivisions.join(', ')}',
+    );
+    if (result.equalDivisionJoinLabel != null &&
+        result.equalDivisionJoin != null) {
+      buffer.writeln(
+        '${result.equalDivisionJoinLabel}: ${result.equalDivisionJoin}',
+      );
     }
-    buffer.writeln('preimage: ${result.preimage.join(', ')}');
-    for (final section in [result.tunings, result.errors, result.primes]) {
+    buffer.writeln('mapping:');
+    if (result.mapping.isNotEmpty) {
+      buffer.writeln(formatMatrixText(result.mapping));
+    }
+    for (var index = 0; index < result.preimage.length; index++) {
+      buffer.writeln('preimage ${index + 1}: ${result.preimage[index]}');
+      for (final entry in result.tunings.entries) {
+        if (index < entry.value.length) {
+          buffer.writeln('${entry.key} ${index + 1}: ${entry.value[index]}');
+        }
+      }
+    }
+    for (final section in [result.errors, result.primes]) {
       for (final entry in section.entries) {
-        buffer.writeln('${entry.key}: ${entry.value.join(', ')}');
+        buffer.writeln('${entry.key}:');
+        for (final value in entry.value) {
+          buffer.writeln(value);
+        }
       }
     }
     buffer.writeln('badness: ${result.badness}');
@@ -43,6 +76,31 @@ class ResultPage extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Result copied')));
+  }
+
+  Future<void> _toggleFavorite() async {
+    final favorite = widget.favorite;
+    final favorites = widget.favorites;
+    if (favorite == null || favorites == null || _savingFavorite) return;
+    setState(() => _savingFavorite = true);
+    try {
+      final added = await favorites.toggle(favorite);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            added ? 'Saved to favorites' : 'Removed from favorites',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update favorites: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingFavorite = false);
+    }
   }
 
   @override
@@ -60,7 +118,7 @@ class ResultPage extends StatelessWidget {
       )
         index,
     };
-    final rows = <_ResultTableItem>[
+    final rows = <_ResultRow>[
       _ResultRow(label: 'rank', value: _TextValue('${result.rank}')),
       _ResultRow(
         label: 'subgroup',
@@ -83,21 +141,17 @@ class ResultPage extends StatelessWidget {
         label: result.equalDivisionsLabel,
         value: _TextValue(result.equalDivisions.join(', '), monospace: true),
       ),
+      if (result.equalDivisionJoinLabel != null &&
+          result.equalDivisionJoin != null)
+        _ResultRow(
+          label: result.equalDivisionJoinLabel!,
+          value: _TextValue(result.equalDivisionJoin!, monospace: true),
+        ),
       _ResultRow(
         label: 'mapping',
         value: MatrixView(rows: result.mapping),
       ),
-      _AlignedResultRows(
-        rows: [
-          _AlignedResultRow(
-            label: 'preimage',
-            values: result.preimage,
-            linkValues: true,
-          ),
-          for (final entry in result.tunings.entries)
-            _AlignedResultRow(label: entry.key, values: entry.value),
-        ],
-      ),
+      ..._preimageTuningRows(),
       ..._valueRows(result.errors),
       ..._valueRows(result.primes),
       _ResultRow(
@@ -110,6 +164,19 @@ class ResultPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Temperament info'),
         actions: [
+          if (widget.favorite != null && widget.favorites != null)
+            AnimatedBuilder(
+              animation: widget.favorites!,
+              builder: (context, _) {
+                final saved = widget.favorites!.contains(widget.favorite!.id);
+                return IconButton(
+                  key: const ValueKey('favorite-result'),
+                  tooltip: saved ? 'Remove from favorites' : 'Add to favorites',
+                  onPressed: _savingFavorite ? null : _toggleFavorite,
+                  icon: Icon(saved ? Icons.bookmark : Icons.bookmark_outline),
+                );
+              },
+            ),
           IconButton(
             tooltip: 'Copy result',
             onPressed: () => _copy(context),
@@ -138,15 +205,37 @@ class ResultPage extends StatelessWidget {
     for (final entry in values.entries)
       _ResultRow(
         label: entry.key,
-        value: _TextValue(entry.value.join(', '), monospace: true),
+        value: _TextValue(entry.value.join('\n'), monospace: true),
       ),
   ];
+
+  List<_ResultRow> _preimageTuningRows() {
+    final rows = <_ResultRow>[];
+    for (var index = 0; index < result.preimage.length; index++) {
+      rows.add(
+        _ResultRow(
+          label: 'preimage ${index + 1}',
+          value: _WikiLink(label: result.preimage[index], monospace: true),
+        ),
+      );
+      for (final entry in result.tunings.entries) {
+        if (index >= entry.value.length) continue;
+        rows.add(
+          _ResultRow(
+            label: '${entry.key} ${index + 1}',
+            value: _TextValue(entry.value[index], monospace: true),
+          ),
+        );
+      }
+    }
+    return rows;
+  }
 }
 
 class _ResultTable extends StatelessWidget {
   const _ResultTable({required this.rows});
 
-  final List<_ResultTableItem> rows;
+  final List<_ResultRow> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -164,16 +253,7 @@ class _ResultTable extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (final row in rows)
-                switch (row) {
-                  _ResultRow() => _ResultRowLayout(
-                    row: row,
-                    labelWidth: labelWidth,
-                  ),
-                  _AlignedResultRows() => _AlignedResultRowsLayout(
-                    rows: row.rows,
-                    labelWidth: labelWidth,
-                  ),
-                },
+                _ResultRowLayout(row: row, labelWidth: labelWidth),
             ],
           );
         },
@@ -182,33 +262,11 @@ class _ResultTable extends StatelessWidget {
   }
 }
 
-sealed class _ResultTableItem {
-  const _ResultTableItem();
-}
-
-class _ResultRow extends _ResultTableItem {
+class _ResultRow {
   const _ResultRow({required this.label, required this.value});
 
   final String label;
   final Widget value;
-}
-
-class _AlignedResultRows extends _ResultTableItem {
-  const _AlignedResultRows({required this.rows});
-
-  final List<_AlignedResultRow> rows;
-}
-
-class _AlignedResultRow {
-  const _AlignedResultRow({
-    required this.label,
-    required this.values,
-    this.linkValues = false,
-  });
-
-  final String label;
-  final List<String> values;
-  final bool linkValues;
 }
 
 class _ResultRowLayout extends StatelessWidget {
@@ -235,112 +293,6 @@ class _ResultRowLayout extends StatelessWidget {
           Expanded(child: row.value),
         ],
       ),
-    );
-  }
-}
-
-class _AlignedResultRowsLayout extends StatelessWidget {
-  const _AlignedResultRowsLayout({
-    required this.rows,
-    required this.labelWidth,
-  });
-
-  static const _rowHeight = 52.0;
-
-  final List<_AlignedResultRow> rows;
-  final double labelWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    final valueColumnCount = rows.fold<int>(
-      0,
-      (count, row) => row.values.length > count ? row.values.length : count,
-    );
-    final columnCount = valueColumnCount == 0 ? 1 : valueColumnCount;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: labelWidth,
-          child: Column(
-            children: [
-              for (final row in rows)
-                SizedBox(
-                  height: _rowHeight,
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 14),
-                      child: Text(
-                        row.label,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Table(
-              defaultColumnWidth: const IntrinsicColumnWidth(),
-              children: [
-                for (final row in rows)
-                  TableRow(
-                    children: [
-                      for (var column = 0; column < columnCount; column++)
-                        SizedBox(
-                          key: ValueKey('aligned-value-${row.label}-$column'),
-                          height: _rowHeight,
-                          child: Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                top: 14,
-                                right: column < columnCount - 1 ? 16 : 0,
-                              ),
-                              child: _AlignedResultValue(
-                                value: column < row.values.length
-                                    ? row.values[column]
-                                    : null,
-                                linked: row.linkValues,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AlignedResultValue extends StatelessWidget {
-  const _AlignedResultValue({required this.value, required this.linked});
-
-  final String? value;
-  final bool linked;
-
-  @override
-  Widget build(BuildContext context) {
-    if (value == null) return const SizedBox.shrink();
-    const style = TextStyle(fontFamily: 'monospace', height: 1.45);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (linked)
-          _WikiLink(label: value!, monospace: true)
-        else
-          SelectableText(value!, style: style),
-      ],
     );
   }
 }
@@ -496,25 +448,108 @@ class MatrixView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final widest = rows
-        .expand((row) => row)
-        .fold<int>(
-          1,
-          (width, value) =>
-              value.toString().length > width ? value.toString().length : width,
-        );
+    if (rows.isEmpty) return const SizedBox.shrink();
+    final values = _formatMatrixValueRows(rows).join('\n');
+    const style = TextStyle(fontFamily: 'monospace', height: 1.55);
+    final textPainter = TextPainter(
+      text: TextSpan(text: values, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final bracketHeight = textPainter.height < 18.0 ? 18.0 : textPainter.height;
+    final bracketColor = Theme.of(context).colorScheme.onSurface;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: SelectableText(
-        rows
-            .map(
-              (row) => row
-                  .map((value) => value.toString().padLeft(widest))
-                  .join('  '),
-            )
-            .join('\n'),
-        style: const TextStyle(fontFamily: 'monospace', height: 1.55),
+      child: SizedBox(
+        height: bracketHeight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CustomPaint(
+              key: const ValueKey('mapping-left-bracket'),
+              size: Size(8, bracketHeight),
+              painter: _MatrixBracketPainter(color: bracketColor, left: true),
+            ),
+            const SizedBox(width: 6),
+            SelectableText(
+              values,
+              key: const ValueKey('mapping-values'),
+              style: style,
+            ),
+            const SizedBox(width: 6),
+            CustomPaint(
+              key: const ValueKey('mapping-right-bracket'),
+              size: Size(8, bracketHeight),
+              painter: _MatrixBracketPainter(color: bracketColor, left: false),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+String formatMatrixText(List<List<int>> rows) {
+  final values = _formatMatrixValueRows(rows);
+  if (values.isEmpty) return '';
+  if (values.length == 1) return '[ ${values.single} ]';
+  return [
+    '[ ${values.first}',
+    for (final value in values.skip(1).take(values.length - 2)) '  $value',
+    '  ${values.last} ]',
+  ].join('\n');
+}
+
+List<String> _formatMatrixValueRows(List<List<int>> rows) {
+  if (rows.isEmpty) return const [];
+  final columnCount = rows.fold<int>(
+    0,
+    (count, row) => row.length > count ? row.length : count,
+  );
+  final widths = List<int>.filled(columnCount, 1);
+  for (final row in rows) {
+    for (var column = 0; column < row.length; column++) {
+      final width = row[column].toString().length;
+      if (width > widths[column]) widths[column] = width;
+    }
+  }
+  return [
+    for (final row in rows)
+      List<String>.generate(
+        columnCount,
+        (column) => column < row.length
+            ? row[column].toString().padLeft(widths[column])
+            : ''.padLeft(widths[column]),
+      ).join('  '),
+  ];
+}
+
+class _MatrixBracketPainter extends CustomPainter {
+  const _MatrixBracketPainter({required this.color, required this.left});
+
+  final Color color;
+  final bool left;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final vertical = left ? 0.75 : size.width - 0.75;
+    final inward = left ? size.width : 0.0;
+    final path = Path()
+      ..moveTo(inward, 0.75)
+      ..lineTo(vertical, 0.75)
+      ..lineTo(vertical, size.height - 0.75)
+      ..lineTo(inward, size.height - 0.75);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MatrixBracketPainter oldDelegate) =>
+      color != oldDelegate.color || left != oldDelegate.left;
 }

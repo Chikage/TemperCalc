@@ -9,5 +9,6 @@ void main() {
     expect(find.text('Temperament calculator'), findsOneWidget);
     expect(find.text('Calculator'), findsOneWidget);
     expect(find.text('Search'), findsOneWidget);
+    expect(find.text('Favorites'), findsOneWidget);
   });
 }

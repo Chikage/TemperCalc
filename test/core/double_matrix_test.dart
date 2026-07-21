@@ -78,6 +78,23 @@ void main() {
       );
     });
 
+    test('solves overdetermined systems and reports transformed residual', () {
+      final matrix = DoubleMatrix.fromNums([
+        [1, 0],
+        [0, 1],
+        [1, 1],
+      ]);
+      final result = matrix.leastSquaresVector([1, 2, 4]);
+
+      expect(result.solution[0], closeTo(4 / 3, 1e-14));
+      expect(result.solution[1], closeTo(7 / 3, 1e-14));
+      expect(result.transformedResidual, hasLength(1));
+      expect(
+        result.transformedResidual.single.abs(),
+        closeTo(1 / math.sqrt(3), 1e-14),
+      );
+    });
+
     test('handles consistently scaled small matrices', () {
       final matrix = DoubleMatrix.diagonal([1e-20, 2e-20]);
       expect(matrix.determinant(), closeTo(2e-40, 1e-52));
@@ -125,6 +142,7 @@ void main() {
         [2, 4],
       ]);
       expect(singular.inverse, throwsStateError);
+      expect(() => singular.leastSquaresVector([1, 2]), throwsStateError);
       expect(
         () => DoubleMatrix.fromRows([
           [double.nan],

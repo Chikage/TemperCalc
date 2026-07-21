@@ -11,6 +11,8 @@ import 'metrics.dart';
 import 'models.dart';
 import 'temperament_builder.dart';
 
+const _detailPrecision = 9;
+
 class TemperamentInfoService {
   const TemperamentInfoService();
 
@@ -74,6 +76,8 @@ class TemperamentInfoService {
         : 'ed$first';
     late String equalDivisionsLabel;
     late List<String> equalDivisions;
+    String? equalDivisionJoinLabel;
+    String? equalDivisionJoin;
     if (mapping.rowCount == 1) {
       equalDivisionsLabel = divisionRoot;
       equalDivisions = [edoMapNotation(mapping.row(0), subgroup)];
@@ -97,8 +101,10 @@ class TemperamentInfoService {
       joinMaps = _positiveFirstEntryRows(joinMaps);
       final rows = joinMaps.values.map(List<BigInt>.of).toList()
         ..sort((left, right) => left.first.compareTo(right.first));
-      final join = rows.map((row) => edoMapNotation(row, subgroup)).join(' & ');
-      equalDivisions.add('$divisionRoot join: $join');
+      equalDivisionJoinLabel = '$divisionRoot join';
+      equalDivisionJoin = rows
+          .map((row) => edoMapNotation(row, subgroup))
+          .join(' & ');
     }
 
     var reduction = input.reduction;
@@ -201,17 +207,19 @@ class TemperamentInfoService {
     );
 
     final abbreviation = input.weight.abbreviation;
+    String formatCents(double value) =>
+        cents(value, precision: _detailPrecision);
     final tunings = <String, List<String>>{
-      '$abbreviation tuning': unconstrainedGenerators.map(cents).toList(),
-      'C$abbreviation tuning': constrainedGenerators.map(cents).toList(),
+      '$abbreviation tuning': unconstrainedGenerators.map(formatCents).toList(),
+      'C$abbreviation tuning': constrainedGenerators.map(formatCents).toList(),
     };
     final errors = <String, List<String>>{
-      '$abbreviation errors': unconstrainedErrors.map(cents).toList(),
-      'C$abbreviation errors': constrainedErrors.map(cents).toList(),
+      '$abbreviation errors': unconstrainedErrors.map(formatCents).toList(),
+      'C$abbreviation errors': constrainedErrors.map(formatCents).toList(),
     };
     final primes = <String, List<String>>{
-      '$abbreviation primes': unconstrainedPrimes.map(cents).toList(),
-      'C$abbreviation primes': constrainedPrimes.map(cents).toList(),
+      '$abbreviation primes': unconstrainedPrimes.map(formatCents).toList(),
+      'C$abbreviation primes': constrainedPrimes.map(formatCents).toList(),
     };
 
     final targetIntervals = input.target.trim().isEmpty
@@ -255,10 +263,10 @@ class TemperamentInfoService {
         ).toString(),
       );
       tunings['target tuning (${targetNames.join(', ')})'] = targetGenerators
-          .map(cents)
+          .map(formatCents)
           .toList();
-      errors['target errors'] = targetErrors.map(cents).toList();
-      primes['target primes'] = targetPrimes.map(cents).toList();
+      errors['target errors'] = targetErrors.map(formatCents).toList();
+      primes['target primes'] = targetPrimes.map(formatCents).toList();
     }
 
     final tenneyProjection = basisDouble
@@ -280,12 +288,14 @@ class TemperamentInfoService {
       commaBasis: List.unmodifiable(commaInfo),
       equalDivisionsLabel: equalDivisionsLabel,
       equalDivisions: List.unmodifiable(equalDivisions),
+      equalDivisionJoinLabel: equalDivisionJoinLabel,
+      equalDivisionJoin: equalDivisionJoin,
       mapping: mapping.toIntsChecked(),
       preimage: List.unmodifiable(preimageRatios),
       tunings: Map.unmodifiable(tunings),
       errors: Map.unmodifiable(errors),
       primes: Map.unmodifiable(primes),
-      badness: badness?.toStringAsFixed(3) ?? 'NA',
+      badness: badness?.toStringAsFixed(_detailPrecision) ?? 'NA',
     );
   }
 }
@@ -578,10 +588,16 @@ List<double> _rowTimesInt(List<double> row, IntMatrix matrix) {
   }
   return List<double>.generate(matrix.columnCount, (column) {
     var sum = 0.0;
+    var correction = 0.0;
     for (var index = 0; index < row.length; index++) {
-      sum += row[index] * matrix[index][column].toDouble();
+      final product = row[index] * matrix[index][column].toDouble();
+      final updated = sum + product;
+      correction += sum.abs() >= product.abs()
+          ? (sum - updated) + product
+          : (product - updated) + sum;
+      sum = updated;
     }
-    return sum;
+    return sum + correction;
   });
 }
 

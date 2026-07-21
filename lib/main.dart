@@ -57,8 +57,12 @@ class TemperCalcApp extends StatelessWidget {
     timeoutMessage: 'Calculation took too long',
   );
 
-  Future<TemperamentSearchResult> _search(SearchInput input) =>
-      _runWorker(_searchWorker, input, timeoutMessage: 'Search took too long');
+  Future<TemperamentSearchResult> _search(SearchInput input) => _runWorker(
+    _searchWorker,
+    input,
+    timeout: const Duration(seconds: 15),
+    timeoutMessage: 'Search took too long',
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +101,7 @@ void _searchWorker((SendPort, SearchInput) message) {
 Future<T> _runWorker<T, I>(
   void Function((SendPort, I)) worker,
   I input, {
+  Duration timeout = const Duration(seconds: 5),
   required String timeoutMessage,
 }) async {
   final receivePort = ReceivePort();
@@ -105,7 +110,7 @@ Future<T> _runWorker<T, I>(
     input,
   ), debugName: 'Temper Calc worker');
   try {
-    final message = await receivePort.first.timeout(const Duration(seconds: 5));
+    final message = await receivePort.first.timeout(timeout);
     if (message case [true, final T result]) return result;
     if (message case [false, final Object error]) {
       throw TemperamentException(error.toString());

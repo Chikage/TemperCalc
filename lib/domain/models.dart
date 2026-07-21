@@ -88,6 +88,8 @@ class TemperamentInfo {
     required this.commaBasis,
     required this.equalDivisionsLabel,
     required this.equalDivisions,
+    this.equalDivisionJoinLabel,
+    this.equalDivisionJoin,
     required this.mapping,
     required this.preimage,
     required this.tunings,
@@ -105,6 +107,8 @@ class TemperamentInfo {
   final List<CommaInfo> commaBasis;
   final String equalDivisionsLabel;
   final List<String> equalDivisions;
+  final String? equalDivisionJoinLabel;
+  final String? equalDivisionJoin;
   final List<List<int>> mapping;
   final List<String> preimage;
   final Map<String, List<String>> tunings;

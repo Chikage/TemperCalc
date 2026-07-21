@@ -41,7 +41,7 @@ void main() {
       tunings: {},
       errors: {},
       primes: {},
-      badness: '0.471',
+      badness: '0.471479111',
     );
 
     await tester.pumpWidget(MaterialApp(home: ResultPage(result: result)));
@@ -62,36 +62,90 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('aligns each preimage with both tuning values', (tester) async {
+  test('formats one bracket pair around a complete mapping matrix', () {
+    expect(
+      formatMatrixText(const [
+        [12, 19, 28],
+      ]),
+      '[ 12  19  28 ]',
+    );
+    expect(
+      formatMatrixText(const [
+        [1, 1, 0, -3],
+        [0, 1, 4, 10],
+      ]),
+      '[ 1  1  0  -3\n  0  1  4  10 ]',
+    );
+  });
+
+  testWidgets('lists each preimage with its tuning values on separate rows', (
+    tester,
+  ) async {
     const result = TemperamentInfo(
       rank: 3,
       subgroup: '2.3.5.7',
       commaBasis: [],
       equalDivisionsLabel: 'EDOs',
-      equalDivisions: [],
-      mapping: [],
+      equalDivisions: ['12', '19', '31'],
+      equalDivisionJoinLabel: 'edo join',
+      equalDivisionJoin: '12 & 19 & 31',
+      mapping: [
+        [1, 1, 0, -3],
+        [0, 1, 4, 10],
+      ],
       preimage: ['2', '3/2', '13/8'],
       tunings: {
-        'WE tuning': ['1201.391', '697.045', '836.333'],
-        'CWE tuning': ['1200.000', '696.651', '837.548'],
+        'WE tuning': ['1201.391000000', '697.045000000', '836.333000000'],
+        'CWE tuning': ['1200.000000000', '696.651000000', '837.548000000'],
       },
-      errors: {},
-      primes: {},
-      badness: '0.000',
+      errors: {
+        'WE errors': ['1.391000000', '-4.910000000', '2.340000000'],
+        'CWE errors': ['0.000000000', '-5.304000000', '3.555000000'],
+      },
+      primes: {
+        'WE primes': ['1201.391000000', '1898.436000000', '2787.990000000'],
+        'CWE primes': ['1200.000000000', '1896.651000000', '2789.199000000'],
+      },
+      badness: '0.000000000',
     );
 
     await tester.pumpWidget(MaterialApp(home: ResultPage(result: result)));
 
-    for (var column = 0; column < result.preimage.length; column++) {
-      final leftEdges = [
-        for (final label in ['preimage', ...result.tunings.keys])
-          tester
-              .getTopLeft(find.byKey(ValueKey('aligned-value-$label-$column')))
-              .dx,
+    for (var index = 0; index < result.preimage.length; index++) {
+      final number = index + 1;
+      final labels = [
+        'preimage $number',
+        'WE tuning $number',
+        'CWE tuning $number',
       ];
-      expect(leftEdges.toSet(), hasLength(1));
+      final tops = labels
+          .map((label) => tester.getTopLeft(find.text(label)).dy)
+          .toList();
+      expect(tops[0], lessThan(tops[1]));
+      expect(tops[1], lessThan(tops[2]));
+      if (number < result.preimage.length) {
+        expect(
+          tops[2],
+          lessThan(tester.getTopLeft(find.text('preimage ${number + 1}')).dy),
+        );
+      }
     }
-    expect(find.text(', '), findsNothing);
+
+    expect(
+      tester.getTopLeft(find.text('EDOs')).dy,
+      lessThan(tester.getTopLeft(find.text('edo join')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('edo join')).dy,
+      lessThan(tester.getTopLeft(find.text('mapping')).dy),
+    );
+    expect(find.byKey(const ValueKey('mapping-left-bracket')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mapping-right-bracket')), findsOneWidget);
+    expect(find.text('1.391000000\n-4.910000000\n2.340000000'), findsOneWidget);
+    expect(
+      find.text('1201.391000000\n1898.436000000\n2787.990000000'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

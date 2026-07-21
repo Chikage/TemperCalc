@@ -2,6 +2,18 @@ import 'dart:math' as math;
 
 import 'int_matrix.dart';
 
+final class LeastSquaresResult {
+  const LeastSquaresResult({
+    required this.solution,
+    required this.transformedResidual,
+  });
+
+  final List<double> solution;
+
+  /// The trailing entries of `Q^T b`; its norm equals the residual norm.
+  final List<double> transformedResidual;
+}
+
 /// A rectangular, immutable matrix of double-precision values.
 final class DoubleMatrix {
   factory DoubleMatrix(List<List<double>> rows, {int? columnCount}) =>
@@ -193,13 +205,10 @@ final class DoubleMatrix {
     return DoubleMatrix.fromRows(
       List.generate(
         rowCount,
-        (row) => List.generate(other.columnCount, (column) {
-          var sum = 0.0;
-          for (var k = 0; k < columnCount; k++) {
-            sum += _rows[row][k] * other._rows[k][column];
-          }
-          return sum;
-        }),
+        (row) => List.generate(
+          other.columnCount,
+          (column) => _rowColumnProduct(_rows[row], other, column),
+        ),
       ),
       columnCount: other.columnCount,
     );
@@ -212,13 +221,7 @@ final class DoubleMatrix {
       );
     }
     return List<double>.unmodifiable(
-      List.generate(rowCount, (row) {
-        var sum = 0.0;
-        for (var column = 0; column < columnCount; column++) {
-          sum += _rows[row][column] * vector[column];
-        }
-        return sum;
-      }),
+      List.generate(rowCount, (row) => _dotProduct(_rows[row], vector)),
     );
   }
 
@@ -278,6 +281,33 @@ final class DoubleMatrix {
       return DoubleMatrix.zero(0, rightHandSide.columnCount);
     }
 
+    var solution = _solveOnce(rightHandSide, tolerance);
+    const machineEpsilon = 2.220446049250313e-16;
+    final matrixScale = _maximumMagnitude();
+    final rightScale = rightHandSide._maximumMagnitude();
+    for (var iteration = 0; iteration < 2; iteration++) {
+      final residual = rightHandSide.subtract(multiply(solution));
+      final residualScale = residual._maximumMagnitude();
+      final expectedRoundoff =
+          8.0 *
+          machineEpsilon *
+          math.max(1, rowCount) *
+          (matrixScale * solution._maximumMagnitude() + rightScale);
+      if (residualScale <= expectedRoundoff) break;
+
+      final correction = _solveOnce(residual, tolerance);
+      if (correction._maximumMagnitude() == 0.0) break;
+      final candidate = solution.add(correction);
+      final candidateResidualScale = rightHandSide
+          .subtract(multiply(candidate))
+          ._maximumMagnitude();
+      if (candidateResidualScale >= residualScale) break;
+      solution = candidate;
+    }
+    return solution;
+  }
+
+  DoubleMatrix _solveOnce(DoubleMatrix rightHandSide, double tolerance) {
     final left = toMutableRows();
     final right = rightHandSide.toMutableRows();
     final rowScales = _rowScales(left);
@@ -345,6 +375,102 @@ final class DoubleMatrix {
       tolerance: tolerance,
     );
     return List<double>.unmodifiable(solved.column(0));
+  }
+
+  LeastSquaresResult leastSquaresVector(
+    List<double> rightHandSide, {
+    double tolerance = 1e-12,
+  }) {
+    _validateTolerance(tolerance);
+    if (rightHandSide.length != rowCount) {
+      throw ArgumentError(
+        'Right-hand side length ${rightHandSide.length} does not match '
+        '$rowCount rows',
+      );
+    }
+    if (rightHandSide.any((value) => !value.isFinite)) {
+      throw ArgumentError('Right-hand side entries must be finite');
+    }
+    if (rowCount < columnCount) {
+      throw ArgumentError(
+        'Least-squares matrix must have at least as many rows as columns',
+      );
+    }
+    if (columnCount == 0) {
+      return LeastSquaresResult(
+        solution: const <double>[],
+        transformedResidual: List<double>.unmodifiable(rightHandSide),
+      );
+    }
+
+    final work = toMutableRows();
+    final transformedRight = List<double>.of(rightHandSide);
+    final columnScales = List<double>.generate(
+      columnCount,
+      (column) => _stableNorm(
+        List<double>.generate(rowCount, (row) => work[row][column]),
+      ),
+    );
+
+    for (var column = 0; column < columnCount; column++) {
+      final reflector = List<double>.generate(
+        rowCount - column,
+        (offset) => work[column + offset][column],
+      );
+      final norm = _stableNorm(reflector);
+      if (columnScales[column] == 0.0 ||
+          norm <= tolerance * columnScales[column]) {
+        throw StateError('Matrix is numerically rank deficient');
+      }
+
+      final alpha = reflector[0] >= 0.0 ? -norm : norm;
+      reflector[0] -= alpha;
+      final reflectorNorm = _stableNorm(reflector);
+      if (reflectorNorm == 0.0 || !reflectorNorm.isFinite) {
+        throw StateError('Matrix is numerically rank deficient');
+      }
+      for (var index = 0; index < reflector.length; index++) {
+        reflector[index] /= reflectorNorm;
+      }
+
+      for (var target = column; target < columnCount; target++) {
+        final projection = _offsetDotProduct(reflector, work, column, target);
+        for (var index = 0; index < reflector.length; index++) {
+          work[column + index][target] -= 2.0 * projection * reflector[index];
+        }
+      }
+      final rightProjection = _offsetVectorDotProduct(
+        reflector,
+        transformedRight,
+        column,
+      );
+      for (var index = 0; index < reflector.length; index++) {
+        transformedRight[column + index] -=
+            2.0 * rightProjection * reflector[index];
+      }
+    }
+
+    final solution = List<double>.filled(columnCount, 0.0);
+    for (var row = columnCount - 1; row >= 0; row--) {
+      var sum = transformedRight[row];
+      var correction = 0.0;
+      for (var column = row + 1; column < columnCount; column++) {
+        final term = -work[row][column] * solution[column];
+        final updated = sum + term;
+        correction += sum.abs() >= term.abs()
+            ? (sum - updated) + term
+            : (term - updated) + sum;
+        sum = updated;
+      }
+      solution[row] = (sum + correction) / work[row][row];
+    }
+
+    return LeastSquaresResult(
+      solution: List<double>.unmodifiable(solution),
+      transformedResidual: List<double>.unmodifiable(
+        transformedRight.sublist(columnCount),
+      ),
+    );
   }
 
   static DoubleMatrix verticalStack(
@@ -456,6 +582,103 @@ final class DoubleMatrix {
         ),
       )
       .toList(growable: false);
+
+  static double _rowColumnProduct(
+    List<double> row,
+    DoubleMatrix matrix,
+    int column,
+  ) {
+    var sum = 0.0;
+    var correction = 0.0;
+    for (var index = 0; index < row.length; index++) {
+      final product = row[index] * matrix._rows[index][column];
+      final updated = sum + product;
+      correction += sum.abs() >= product.abs()
+          ? (sum - updated) + product
+          : (product - updated) + sum;
+      sum = updated;
+    }
+    return sum + correction;
+  }
+
+  static double _dotProduct(List<double> left, List<double> right) {
+    var sum = 0.0;
+    var correction = 0.0;
+    for (var index = 0; index < left.length; index++) {
+      final product = left[index] * right[index];
+      final updated = sum + product;
+      correction += sum.abs() >= product.abs()
+          ? (sum - updated) + product
+          : (product - updated) + sum;
+      sum = updated;
+    }
+    return sum + correction;
+  }
+
+  static double _offsetDotProduct(
+    List<double> left,
+    List<List<double>> right,
+    int rowOffset,
+    int column,
+  ) {
+    var sum = 0.0;
+    var correction = 0.0;
+    for (var index = 0; index < left.length; index++) {
+      final product = left[index] * right[rowOffset + index][column];
+      final updated = sum + product;
+      correction += sum.abs() >= product.abs()
+          ? (sum - updated) + product
+          : (product - updated) + sum;
+      sum = updated;
+    }
+    return sum + correction;
+  }
+
+  static double _offsetVectorDotProduct(
+    List<double> left,
+    List<double> right,
+    int offset,
+  ) {
+    var sum = 0.0;
+    var correction = 0.0;
+    for (var index = 0; index < left.length; index++) {
+      final product = left[index] * right[offset + index];
+      final updated = sum + product;
+      correction += sum.abs() >= product.abs()
+          ? (sum - updated) + product
+          : (product - updated) + sum;
+      sum = updated;
+    }
+    return sum + correction;
+  }
+
+  static double _stableNorm(List<double> values) {
+    var scale = 0.0;
+    var sumSquares = 1.0;
+    for (final value in values) {
+      final magnitude = value.abs();
+      if (magnitude == 0.0) continue;
+      if (scale < magnitude) {
+        final ratio = scale / magnitude;
+        sumSquares = 1.0 + sumSquares * ratio * ratio;
+        scale = magnitude;
+      } else {
+        final ratio = magnitude / scale;
+        sumSquares += ratio * ratio;
+      }
+    }
+    return scale == 0.0 ? 0.0 : scale * math.sqrt(sumSquares);
+  }
+
+  double _maximumMagnitude() {
+    var maximum = 0.0;
+    for (final row in _rows) {
+      for (final value in row) {
+        maximum = math.max(maximum, value.abs());
+      }
+    }
+    return maximum;
+  }
 
   static void _validateTolerance(double tolerance) {
     if (!tolerance.isFinite || tolerance < 0.0) {

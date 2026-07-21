@@ -11,6 +11,13 @@ import 'metrics.dart';
 import 'models.dart';
 import 'temperament_builder.dart';
 
+const _maximumSearchDimension = 24;
+const _searchIterations = 12;
+const _maximumCommaCoefficient = 2000;
+const _maximumEdo = 2000;
+const _maximumExploredEdo = 4000;
+const _combinationBudget = 320;
+
 class TemperamentSearchService {
   const TemperamentSearchService();
 
@@ -51,10 +58,12 @@ class TemperamentSearchService {
 
     final rank = initialMap.rowCount;
     final dimension = initialMap.columnCount;
-    if (dimension > 20) {
+    if (dimension > _maximumSearchDimension) {
       return const TemperamentSearchResult(
         groups: [],
-        warning: 'Search is limited to subgroup dimensions of 20 or less',
+        warning:
+            'Search is limited to subgroup dimensions of '
+            '$_maximumSearchDimension or less',
       );
     }
 
@@ -119,7 +128,7 @@ class TemperamentSearchService {
       var factor = 8.0 * subgroupSize;
       final growth = math.min(1.4 * math.pow(1.1, dimension - 1), 2.0);
       final commas = <_SearchEntry>[];
-      for (var iteration = 0; iteration < 8; iteration++) {
+      for (var iteration = 0; iteration < _searchIterations; iteration++) {
         try {
           final metric = _symmetric(
             projectedSubgroupMetric(
@@ -133,7 +142,9 @@ class TemperamentSearchService {
         } on ArgumentError {
           break;
         }
-        if (lattice.flatten().any((value) => value.abs() > BigInt.from(1000))) {
+        if (lattice.flatten().any(
+          (value) => value.abs() > BigInt.from(_maximumCommaCoefficient),
+        )) {
           break;
         }
         factor *= growth;
@@ -155,7 +166,10 @@ class TemperamentSearchService {
         }
       }
       commas.sort((left, right) => left.badness.compareTo(right.badness));
-      final maximumPerRank = math.max(10, 170 ~/ math.max(1, dimension - 2));
+      final maximumPerRank = math.max(
+        20,
+        _combinationBudget ~/ math.max(1, dimension - 2),
+      );
       for (var commaCount = 2; commaCount < dimension - rank; commaCount++) {
         var count = 0;
         for (final indices in combinationsBySum(
@@ -197,7 +211,7 @@ class TemperamentSearchService {
       final growth = 1.4 * math.pow(1.1, dimension - 1);
       var lattice = initialMap;
       final edos = <_SearchEntry>[];
-      for (var iteration = 0; iteration < 8; iteration++) {
+      for (var iteration = 0; iteration < _searchIterations; iteration++) {
         try {
           final metric = _symmetric(
             projectedSubgroupMetric(
@@ -216,9 +230,15 @@ class TemperamentSearchService {
         }
         factor *= growth;
         final found = _absolute(lattice);
-        if (found.values.any((row) => row.first > BigInt.from(2000))) break;
+        if (found.values.any(
+          (row) => row.first > BigInt.from(_maximumExploredEdo),
+        )) {
+          break;
+        }
         for (final row in found.values) {
-          if (row.first < BigInt.two || row.first > BigInt.from(1000)) continue;
+          if (row.first < BigInt.two || row.first > BigInt.from(_maximumEdo)) {
+            continue;
+          }
           final mapping = IntMatrix.fromRows([row]);
           final entry = _SearchEntry(
             edoMapNotation(row, subgroup),
@@ -232,7 +252,10 @@ class TemperamentSearchService {
         }
       }
       edos.sort((left, right) => left.badness.compareTo(right.badness));
-      final maximumPerRank = math.max(10, 170 ~/ math.max(1, rank - 2));
+      final maximumPerRank = math.max(
+        20,
+        _combinationBudget ~/ math.max(1, rank - 2),
+      );
       for (var candidateRank = 2; candidateRank < rank; candidateRank++) {
         var count = 0;
         for (final indices in combinationsBySum(
@@ -266,12 +289,13 @@ class TemperamentSearchService {
     for (final candidateRank in byRank.keys.toList()..sort()) {
       final entries = byRank[candidateRank]!
         ..sort((left, right) => left.badness.compareTo(right.badness));
-      var maximumResults = 5;
-      if (candidateRank <= 2) maximumResults = 12;
-      if (candidateRank == 3) maximumResults = 10;
-      if (candidateRank == dimension - 1) maximumResults = 12;
+      var maximumResults = 10;
+      if (candidateRank <= 2) maximumResults = 24;
+      if (candidateRank == 3) maximumResults = 20;
+      if (candidateRank == dimension - 1) maximumResults = 24;
       final candidates = <SearchCandidate>[];
-      for (final entry in entries.take(maximumResults)) {
+      for (final entry in entries) {
+        if (candidates.length >= maximumResults) break;
         if (factorOrder(entry.mapping) > BigInt.one) continue;
         final mapHeight = height(
           DoubleMatrix.fromIntMatrix(entry.mapping),
@@ -332,7 +356,9 @@ class TemperamentSearchService {
           ),
         );
       }
-      groups.add(SearchGroup(rank: candidateRank, candidates: candidates));
+      if (candidates.isNotEmpty) {
+        groups.add(SearchGroup(rank: candidateRank, candidates: candidates));
+      }
     }
     return TemperamentSearchResult(groups: List.unmodifiable(groups));
   }
