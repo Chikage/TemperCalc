@@ -28,6 +28,15 @@ class SettingsPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const _SectionTitle('Display'),
+                      _ScaleSetting(
+                        key: const ValueKey('setting-display-scale'),
+                        value: settings.displayScalePercent,
+                        onChanged: (value) => controller.update(
+                          settings.copyWith(displayScalePercent: value),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       const _SectionTitle('Search scope'),
                       _IntegerSetting(
                         key: const ValueKey('setting-maximum-dimension'),
@@ -197,6 +206,59 @@ class _SectionTitle extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
       child: Text(label, style: Theme.of(context).textTheme.titleMedium),
+    );
+  }
+}
+
+class _ScaleSetting extends StatefulWidget {
+  const _ScaleSetting({
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_ScaleSetting> createState() => _ScaleSettingState();
+}
+
+class _ScaleSettingState extends State<_ScaleSetting> {
+  late double _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.value.toDouble();
+  }
+
+  @override
+  void didUpdateWidget(_ScaleSetting oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) _value = widget.value.toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      title: Row(
+        children: [
+          const Expanded(child: Text('App scale')),
+          Text('${_value.round()}%'),
+        ],
+      ),
+      subtitle: Slider(
+        key: const ValueKey('display-scale-slider'),
+        value: _value,
+        min: 60,
+        max: 140,
+        divisions: 16,
+        label: '${_value.round()}%',
+        onChanged: (value) => setState(() => _value = value),
+        onChangeEnd: (value) => widget.onChanged(value.round()),
+      ),
     );
   }
 }

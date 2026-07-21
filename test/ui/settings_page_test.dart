@@ -42,6 +42,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Search scope'), findsOneWidget);
 
+    final scaleSlider = tester.widget<Slider>(
+      find.byKey(const ValueKey('display-scale-slider')),
+    );
+    scaleSlider.onChangeEnd!(75);
+    await tester.pump();
+    expect(settings.settings.displayScalePercent, 75);
+
     final dimensionField = find.descendant(
       of: find.byKey(const ValueKey('setting-maximum-dimension')),
       matching: find.byType(TextField),
@@ -73,6 +80,7 @@ void main() {
     expect(submitted, isNotNull);
     expect(submitted!.parameters.maximumDimension, 96);
     expect(storage.saved.searchParameters.maximumDimension, 96);
+    expect(storage.saved.displayScalePercent, 75);
     expect(storage.saved.shows(TemperamentInfoField.mapping), isFalse);
   });
 }

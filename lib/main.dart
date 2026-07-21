@@ -4,11 +4,13 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'data/settings_store.dart';
 import 'domain/models.dart';
 import 'domain/temperament_info_service.dart';
 import 'domain/temperament_search_service.dart';
 import 'ui/app_callbacks.dart' as callbacks;
 import 'ui/app_theme.dart';
+import 'ui/display_scale.dart';
 import 'ui/home_shell.dart';
 
 void main() {
@@ -45,11 +47,41 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ''';
 
-class TemperCalcApp extends StatelessWidget {
-  const TemperCalcApp({this.onCalculate, this.onSearch, super.key});
+class TemperCalcApp extends StatefulWidget {
+  const TemperCalcApp({
+    this.onCalculate,
+    this.onSearch,
+    this.settingsController,
+    super.key,
+  });
 
   final callbacks.CalculateCallback? onCalculate;
   final callbacks.SearchCallback? onSearch;
+  final SettingsController? settingsController;
+
+  @override
+  State<TemperCalcApp> createState() => _TemperCalcAppState();
+}
+
+class _TemperCalcAppState extends State<TemperCalcApp> {
+  late final SettingsController _settings;
+  late final bool _ownsSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsSettings = widget.settingsController == null;
+    _settings =
+        widget.settingsController ??
+        SettingsController(const SharedPreferencesSettingsStorage());
+    unawaited(_settings.load());
+  }
+
+  @override
+  void dispose() {
+    if (_ownsSettings) _settings.dispose();
+    super.dispose();
+  }
 
   Future<TemperamentInfo> _calculate(CalculatorInput input) => _runWorker(
     _calculateWorker,
@@ -72,9 +104,18 @@ class TemperCalcApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
+      builder: (context, child) => AnimatedBuilder(
+        animation: _settings,
+        child: child,
+        builder: (context, child) => AppDisplayScale(
+          percent: _settings.settings.displayScalePercent,
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
       home: HomeShell(
-        onCalculate: onCalculate ?? _calculate,
-        onSearch: onSearch ?? _search,
+        onCalculate: widget.onCalculate ?? _calculate,
+        onSearch: widget.onSearch ?? _search,
+        settingsController: _settings,
       ),
     );
   }

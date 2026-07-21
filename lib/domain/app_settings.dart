@@ -47,6 +47,7 @@ extension TemperamentInfoFieldLabel on TemperamentInfoField {
 class AppSettings {
   const AppSettings({
     this.searchParameters = const SearchParameters(),
+    this.displayScalePercent = 100,
     this.tuningDecimalPlaces = 9,
     this.errorsDecimalPlaces = 9,
     this.primesDecimalPlaces = 9,
@@ -72,13 +73,15 @@ class AppSettings {
       TemperamentInfoField.badness,
       TemperamentInfoField.complexity,
     },
-  }) : assert(tuningDecimalPlaces >= 0 && tuningDecimalPlaces <= 12),
+  }) : assert(displayScalePercent >= 60 && displayScalePercent <= 140),
+       assert(tuningDecimalPlaces >= 0 && tuningDecimalPlaces <= 12),
        assert(errorsDecimalPlaces >= 0 && errorsDecimalPlaces <= 12),
        assert(primesDecimalPlaces >= 0 && primesDecimalPlaces <= 12),
        assert(badnessDecimalPlaces >= 0 && badnessDecimalPlaces <= 12),
        assert(complexityDecimalPlaces >= 0 && complexityDecimalPlaces <= 12);
 
   final SearchParameters searchParameters;
+  final int displayScalePercent;
   final int tuningDecimalPlaces;
   final int errorsDecimalPlaces;
   final int primesDecimalPlaces;
@@ -91,6 +94,7 @@ class AppSettings {
 
   AppSettings copyWith({
     SearchParameters? searchParameters,
+    int? displayScalePercent,
     int? tuningDecimalPlaces,
     int? errorsDecimalPlaces,
     int? primesDecimalPlaces,
@@ -99,6 +103,7 @@ class AppSettings {
     Set<TemperamentInfoField>? visibleTemperamentInfoFields,
   }) => AppSettings(
     searchParameters: searchParameters ?? this.searchParameters,
+    displayScalePercent: displayScalePercent ?? this.displayScalePercent,
     tuningDecimalPlaces: tuningDecimalPlaces ?? this.tuningDecimalPlaces,
     errorsDecimalPlaces: errorsDecimalPlaces ?? this.errorsDecimalPlaces,
     primesDecimalPlaces: primesDecimalPlaces ?? this.primesDecimalPlaces,

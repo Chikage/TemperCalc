@@ -8,6 +8,7 @@ void main() {
     'settings JSON round-trips search, precision, and visibility values',
     () {
       const settings = AppSettings(
+        displayScalePercent: 75,
         searchParameters: SearchParameters(
           maximumDimension: 96,
           maximumEdo: 750000,
@@ -29,6 +30,7 @@ void main() {
       final decoded = settingsFromJson(settingsToJson(settings));
 
       expect(decoded.searchParameters.maximumDimension, 96);
+      expect(decoded.displayScalePercent, 75);
       expect(decoded.searchParameters.maximumEdo, 750000);
       expect(decoded.searchParameters.explorationIterations, 640);
       expect(decoded.searchParameters.resultsPerRank, 512);
@@ -48,6 +50,7 @@ void main() {
   test('stored numeric values are clamped to the aggressive UI ranges', () {
     final decoded = settingsFromJson({
       'maximumDimension': 999,
+      'displayScalePercent': 999,
       'maximumEdo': 9999999,
       'explorationIterations': 9999,
       'resultsPerRank': 9999,
@@ -58,6 +61,7 @@ void main() {
     });
 
     expect(decoded.searchParameters.maximumDimension, 128);
+    expect(decoded.displayScalePercent, 140);
     expect(decoded.searchParameters.maximumEdo, 1000000);
     expect(decoded.searchParameters.explorationIterations, 1000);
     expect(decoded.searchParameters.resultsPerRank, 1000);

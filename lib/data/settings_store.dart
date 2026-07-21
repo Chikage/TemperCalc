@@ -88,7 +88,8 @@ class SettingsController extends ChangeNotifier {
 }
 
 Map<String, Object?> settingsToJson(AppSettings settings) => {
-  'schemaVersion': 2,
+  'schemaVersion': 3,
+  'displayScalePercent': settings.displayScalePercent,
   'maximumDimension': settings.searchParameters.maximumDimension,
   'maximumEdo': settings.searchParameters.maximumEdo,
   'explorationIterations': settings.searchParameters.explorationIterations,
@@ -142,6 +143,7 @@ AppSettings settingsFromJson(Map<String, Object?> json) {
   }
 
   return AppSettings(
+    displayScalePercent: integer('displayScalePercent', 100, 60, 140),
     searchParameters: SearchParameters(
       maximumDimension: integer('maximumDimension', 24, 2, 128),
       maximumEdo: integer('maximumEdo', 2000, 2, 1000000),
