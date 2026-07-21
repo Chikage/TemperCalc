@@ -123,11 +123,6 @@ class _CalculatorPageState extends State<CalculatorPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Temperament calculator',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 20),
                     Container(
                       key: _subgroupAnchor,
                       child: TextFormField(

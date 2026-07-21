@@ -25,7 +25,18 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Temper Calc'),
+        title: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 260),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _index == 0 ? 'Temperament calculator' : 'Search temperaments',
+              maxLines: 1,
+              style: const TextStyle(fontSize: 18),
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'About Temper Calc',
@@ -33,7 +44,7 @@ class _HomeShellState extends State<HomeShell> {
             onPressed: () => showAboutDialog(
               context: context,
               applicationName: 'Temper Calc',
-              applicationVersion: '1.0.0',
+              applicationVersion: '1.0.2',
               applicationLegalese:
                   'Copyright (c) 2026 Shiryee Lin\nBased on Sin-tel/temper',
               applicationIcon: ClipRRect(

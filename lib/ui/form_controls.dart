@@ -5,20 +5,22 @@ import '../domain/models.dart';
 class FormSection extends StatelessWidget {
   const FormSection({
     required this.title,
-    required this.child,
+    this.child,
     this.trailing,
     super.key,
   });
 
   final String title;
-  final Widget child;
+  final Widget? child;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final stackHeader = trailing != null && constraints.maxWidth < 520;
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final stackHeader =
+            trailing != null && (constraints.maxWidth < 340 || textScale > 1.5);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -35,14 +37,18 @@ class FormSection extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
                   ?trailing,
                 ],
               ),
-            const SizedBox(height: 10),
-            child,
+            if (child case final child?) ...[
+              const SizedBox(height: 10),
+              child,
+            ],
           ],
         );
       },

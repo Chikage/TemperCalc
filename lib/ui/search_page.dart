@@ -142,11 +142,6 @@ class _SearchPageState extends State<SearchPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Search temperaments',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 20),
                     Container(
                       key: _subgroupAnchor,
                       child: TextFormField(
@@ -155,7 +150,7 @@ class _SearchPageState extends State<SearchPage>
                         focusNode: _subgroupFocus,
                         decoration: const InputDecoration(
                           labelText: 'Prime limit or subgroup',
-                          hintText: '11  or  2.3.5.7',
+                          hintText: '11  or  2,3,5,7',
                         ),
                         validator: (value) =>
                             value == null || value.trim().isEmpty
@@ -164,9 +159,9 @@ class _SearchPageState extends State<SearchPage>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SegmentedButton<BadnessType>(
+                    FormSection(
+                      title: 'Badness',
+                      trailing: SegmentedButton<BadnessType>(
                         segments: [
                           for (final value in BadnessType.values)
                             ButtonSegment(
@@ -280,32 +275,85 @@ class _SearchGroupView extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 10),
-          for (final candidate in group.candidates) ...[
-            _CandidateCard(
-              candidate: candidate,
-              busy: openingCandidate != null,
-              loading: identical(openingCandidate, candidate),
-              onTap: () => onOpen(candidate),
-            ),
-            const SizedBox(height: 8),
-          ],
+          _SearchResultsTable(
+            rank: group.rank,
+            candidates: group.candidates,
+            openingCandidate: openingCandidate,
+            onOpen: onOpen,
+          ),
         ],
       ),
     );
   }
 }
 
-class _CandidateCard extends StatelessWidget {
-  const _CandidateCard({
+class _SearchResultsTable extends StatelessWidget {
+  const _SearchResultsTable({
+    required this.rank,
+    required this.candidates,
+    required this.openingCandidate,
+    required this.onOpen,
+  });
+
+  final int rank;
+  final List<SearchCandidate> candidates;
+  final SearchCandidate? openingCandidate;
+  final ValueChanged<SearchCandidate> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final divider = BorderSide(color: colorScheme.outlineVariant);
+    return Material(
+      key: ValueKey('search-results-table-$rank'),
+      color: colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: divider,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ColoredBox(
+            color: colorScheme.surfaceContainerHigh,
+            child: _ResultColumns(
+              divider: divider,
+              result: const _TableHeading('Results'),
+              families: const _TableHeading('Families'),
+              badness: const _TableHeading('Badness', alignRight: true),
+              complexity: const _TableHeading('Complexity', alignRight: true),
+            ),
+          ),
+          for (var index = 0; index < candidates.length; index++)
+            _CandidateTableRow(
+              candidate: candidates[index],
+              busy: openingCandidate != null,
+              loading: identical(openingCandidate, candidates[index]),
+              showBottomBorder: index != candidates.length - 1,
+              divider: divider,
+              onTap: () => onOpen(candidates[index]),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CandidateTableRow extends StatelessWidget {
+  const _CandidateTableRow({
     required this.candidate,
     required this.busy,
     required this.loading,
+    required this.showBottomBorder,
+    required this.divider,
     required this.onTap,
   });
 
   final SearchCandidate candidate;
   final bool busy;
   final bool loading;
+  final bool showBottomBorder;
+  final BorderSide divider;
   final VoidCallback onTap;
 
   @override
@@ -322,57 +370,163 @@ class _CandidateCard extends StatelessWidget {
       excludeSemantics: true,
       label: '${candidate.label}$familyLabel$metricLabel',
       onTap: busy ? null : onTap,
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(6),
-          excludeFromSemantics: true,
-          onTap: busy ? null : onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
+      child: InkWell(
+        key: ValueKey('search-result-${candidate.rank}-${candidate.label}'),
+        excludeFromSemantics: true,
+        onTap: busy ? null : onTap,
+        child: Ink(
+          decoration: showBottomBorder
+              ? BoxDecoration(border: Border(bottom: divider))
+              : null,
+          child: _ResultColumns(
+            divider: divider,
+            result: Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        candidate.label,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontWeight: FontWeight.w700,
-                        ),
+                  child: Tooltip(
+                    message: candidate.label,
+                    child: Text(
+                      candidate.label,
+                      softWrap: true,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w700,
                       ),
-                      if (candidate.families.isNotEmpty) ...[
-                        const SizedBox(height: 5),
-                        Text(
-                          candidate.families.join(', '),
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Text(
-                        'Badness  ${candidate.badness?.toStringAsFixed(3) ?? 'NA'}'
-                        '    Complexity  ${candidate.complexity.toStringAsFixed(1)}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (loading)
-                  const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  const Icon(Icons.chevron_right),
+                SizedBox(
+                  width: 20,
+                  child: loading
+                      ? const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                ),
               ],
             ),
+            families: Text(
+              candidate.families.isEmpty ? '-' : candidate.families.join(', '),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            badness: _MetricText(candidate.badness?.toStringAsFixed(3) ?? 'NA'),
+            complexity: _MetricText(candidate.complexity.toStringAsFixed(1)),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultColumns extends StatelessWidget {
+  const _ResultColumns({
+    required this.result,
+    required this.families,
+    required this.badness,
+    required this.complexity,
+    required this.divider,
+  });
+
+  final Widget result;
+  final Widget families;
+  final Widget badness;
+  final Widget complexity;
+  final BorderSide divider;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            flex: 25,
+            child: _ResultCell(divider: divider, child: result),
+          ),
+          Expanded(
+            flex: 31,
+            child: _ResultCell(divider: divider, child: families),
+          ),
+          Expanded(
+            flex: 20,
+            child: _ResultCell(divider: divider, child: badness),
+          ),
+          Expanded(flex: 24, child: _ResultCell(child: complexity)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultCell extends StatelessWidget {
+  const _ResultCell({required this.child, this.divider});
+
+  final Widget child;
+  final BorderSide? divider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: divider == null
+          ? null
+          : BoxDecoration(border: Border(right: divider!)),
+      child: child,
+    );
+  }
+}
+
+class _TableHeading extends StatelessWidget {
+  const _TableHeading(this.label, {this.alignRight = false});
+
+  final String label;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+        child: Text(
+          label,
+          maxLines: 1,
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricText extends StatelessWidget {
+  const _MetricText(this.value);
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(
+          value,
+          maxLines: 1,
+          textAlign: TextAlign.right,
+          style: const TextStyle(fontFamily: 'monospace'),
         ),
       ),
     );

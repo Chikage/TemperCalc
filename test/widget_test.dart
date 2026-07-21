@@ -5,7 +5,7 @@ void main() {
   testWidgets('shows both primary workflows', (tester) async {
     await tester.pumpWidget(const TemperCalcApp());
 
-    expect(find.text('Temper Calc'), findsOneWidget);
+    expect(find.text('Temper Calc'), findsNothing);
     expect(find.text('Temperament calculator'), findsOneWidget);
     expect(find.text('Calculator'), findsOneWidget);
     expect(find.text('Search'), findsOneWidget);

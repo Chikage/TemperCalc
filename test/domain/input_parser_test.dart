@@ -9,6 +9,10 @@ void main() {
     expect(primeLimit.expanded, [2, 3, 5, 7]);
     expect(primeLimit.basis, IntMatrix.identity(4));
 
+    final commaSeparated = parseSubgroup('2,3,5,7');
+    expect(commaSeparated.expanded, [2, 3, 5, 7]);
+    expect(commaSeparated.basis, IntMatrix.identity(4));
+
     final rational = parseSubgroup('2.5/3.7/3.11/3');
     expect(rational.expanded, [2, 3, 5, 7, 11]);
     expect(

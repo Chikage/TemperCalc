@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/link.dart';
 
 import '../domain/models.dart';
 
@@ -50,6 +51,61 @@ class ResultPage extends StatelessWidget {
       ...result.families,
       ...result.weakFamilies.map((name) => '($name)'),
     ];
+    final familyValues = [...result.families, ...result.weakFamilies];
+    final weakFamilyIndexes = <int>{
+      for (
+        var index = result.families.length;
+        index < familyValues.length;
+        index++
+      )
+        index,
+    };
+    final rows = <_ResultTableItem>[
+      _ResultRow(label: 'rank', value: _TextValue('${result.rank}')),
+      _ResultRow(
+        label: 'subgroup',
+        value: _TextValue(result.subgroup, monospace: true),
+      ),
+      if (familyText.isNotEmpty)
+        _ResultRow(
+          label: 'families',
+          value: _WikiValue(
+            values: familyValues,
+            weakIndexes: weakFamilyIndexes,
+            familyLinks: true,
+          ),
+        ),
+      _ResultRow(
+        label: 'comma basis',
+        value: _CommaBasisView(commaBasis: result.commaBasis),
+      ),
+      _ResultRow(
+        label: result.equalDivisionsLabel,
+        value: _TextValue(result.equalDivisions.join(', '), monospace: true),
+      ),
+      _ResultRow(
+        label: 'mapping',
+        value: MatrixView(rows: result.mapping),
+      ),
+      _AlignedResultRows(
+        rows: [
+          _AlignedResultRow(
+            label: 'preimage',
+            values: result.preimage,
+            linkValues: true,
+          ),
+          for (final entry in result.tunings.entries)
+            _AlignedResultRow(label: entry.key, values: entry.value),
+        ],
+      ),
+      ..._valueRows(result.errors),
+      ..._valueRows(result.primes),
+      _ResultRow(
+        label: 'badness',
+        value: _TextValue(result.badness, monospace: true),
+      ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Temperament info'),
@@ -69,60 +125,7 @@ class ResultPage extends StatelessWidget {
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _SummaryHeader(
-                      rank: result.rank,
-                      subgroup: result.subgroup,
-                      families: familyText,
-                      badness: result.badness,
-                    ),
-                    _ResultSection(
-                      title: 'Comma basis',
-                      child: Column(
-                        children: [
-                          for (final comma in result.commaBasis)
-                            _KeyValueLine(
-                              leading: '[${comma.vector.join(' ')}]',
-                              trailing: comma.ratio,
-                            ),
-                        ],
-                      ),
-                    ),
-                    _ResultSection(
-                      title: result.equalDivisionsLabel,
-                      child: SelectableText(
-                        result.equalDivisions.join(', '),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          height: 1.6,
-                        ),
-                      ),
-                    ),
-                    _ResultSection(
-                      title: 'Mapping',
-                      child: MatrixView(rows: result.mapping),
-                    ),
-                    _ResultSection(
-                      title: 'Preimage',
-                      child: Wrap(
-                        spacing: 20,
-                        runSpacing: 8,
-                        children: [
-                          for (var i = 0; i < result.preimage.length; i++)
-                            Text(
-                              'g${i + 1}  ${result.preimage[i]}',
-                              style: const TextStyle(fontFamily: 'monospace'),
-                            ),
-                        ],
-                      ),
-                    ),
-                    _ValueTableSection(title: 'Tuning', values: result.tunings),
-                    _ValueTableSection(title: 'Errors', values: result.errors),
-                    _ValueTableSection(title: 'Primes', values: result.primes),
-                  ],
-                ),
+                child: _ResultTable(rows: rows),
               ),
             ),
           ],
@@ -130,140 +133,367 @@ class ResultPage extends StatelessWidget {
       ),
     );
   }
-}
 
-class _SummaryHeader extends StatelessWidget {
-  const _SummaryHeader({
-    required this.rank,
-    required this.subgroup,
-    required this.families,
-    required this.badness,
-  });
-
-  final int rank;
-  final String subgroup;
-  final List<String> families;
-  final String badness;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Rank $rank', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 6),
-          SelectableText(
-            subgroup,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontFamily: 'monospace',
-            ),
-          ),
-          if (families.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(families.join(', ')),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Badness',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Flexible(
-                child: SelectableText(
-                  badness,
-                  textAlign: TextAlign.end,
-                  style: const TextStyle(fontFamily: 'monospace'),
-                ),
-              ),
-            ],
-          ),
-        ],
+  List<_ResultRow> _valueRows(Map<String, List<String>> values) => [
+    for (final entry in values.entries)
+      _ResultRow(
+        label: entry.key,
+        value: _TextValue(entry.value.join(', '), monospace: true),
       ),
-    );
-  }
+  ];
 }
 
-class _ResultSection extends StatelessWidget {
-  const _ResultSection({required this.title, required this.child});
+class _ResultTable extends StatelessWidget {
+  const _ResultTable({required this.rows});
 
-  final String title;
-  final Widget child;
+  final List<_ResultTableItem> rows;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          child,
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final labelWidth = (constraints.maxWidth * 0.39)
+              .clamp(112.0, 248.0)
+              .toDouble();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final row in rows)
+                switch (row) {
+                  _ResultRow() => _ResultRowLayout(
+                    row: row,
+                    labelWidth: labelWidth,
+                  ),
+                  _AlignedResultRows() => _AlignedResultRowsLayout(
+                    rows: row.rows,
+                    labelWidth: labelWidth,
+                  ),
+                },
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _KeyValueLine extends StatelessWidget {
-  const _KeyValueLine({required this.leading, required this.trailing});
+sealed class _ResultTableItem {
+  const _ResultTableItem();
+}
 
-  final String leading;
-  final String trailing;
+class _ResultRow extends _ResultTableItem {
+  const _ResultRow({required this.label, required this.value});
+
+  final String label;
+  final Widget value;
+}
+
+class _AlignedResultRows extends _ResultTableItem {
+  const _AlignedResultRows({required this.rows});
+
+  final List<_AlignedResultRow> rows;
+}
+
+class _AlignedResultRow {
+  const _AlignedResultRow({
+    required this.label,
+    required this.values,
+    this.linkValues = false,
+  });
+
+  final String label;
+  final List<String> values;
+  final bool linkValues;
+}
+
+class _ResultRowLayout extends StatelessWidget {
+  const _ResultRowLayout({required this.row, required this.labelWidth});
+
+  final _ResultRow row;
+  final double labelWidth;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SelectableText(
-                leading,
-                style: const TextStyle(fontFamily: 'monospace'),
-              ),
+          SizedBox(
+            width: labelWidth,
+            child: Text(
+              row.label,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
           const SizedBox(width: 16),
-          Expanded(child: SelectableText(trailing, textAlign: TextAlign.end)),
+          Expanded(child: row.value),
         ],
       ),
     );
   }
 }
 
-class _ValueTableSection extends StatelessWidget {
-  const _ValueTableSection({required this.title, required this.values});
+class _AlignedResultRowsLayout extends StatelessWidget {
+  const _AlignedResultRowsLayout({
+    required this.rows,
+    required this.labelWidth,
+  });
 
-  final String title;
-  final Map<String, List<String>> values;
+  static const _rowHeight = 52.0;
+
+  final List<_AlignedResultRow> rows;
+  final double labelWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final valueColumnCount = rows.fold<int>(
+      0,
+      (count, row) => row.values.length > count ? row.values.length : count,
+    );
+    final columnCount = valueColumnCount == 0 ? 1 : valueColumnCount;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: labelWidth,
+          child: Column(
+            children: [
+              for (final row in rows)
+                SizedBox(
+                  height: _rowHeight,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 14),
+                      child: Text(
+                        row.label,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Table(
+              defaultColumnWidth: const IntrinsicColumnWidth(),
+              children: [
+                for (final row in rows)
+                  TableRow(
+                    children: [
+                      for (var column = 0; column < columnCount; column++)
+                        SizedBox(
+                          key: ValueKey('aligned-value-${row.label}-$column'),
+                          height: _rowHeight,
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                top: 14,
+                                right: column < columnCount - 1 ? 16 : 0,
+                              ),
+                              child: _AlignedResultValue(
+                                value: column < row.values.length
+                                    ? row.values[column]
+                                    : null,
+                                showComma: column < row.values.length - 1,
+                                linked: row.linkValues,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AlignedResultValue extends StatelessWidget {
+  const _AlignedResultValue({
+    required this.value,
+    required this.showComma,
+    required this.linked,
+  });
+
+  final String? value;
+  final bool showComma;
+  final bool linked;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value == null) return const SizedBox.shrink();
+    const style = TextStyle(fontFamily: 'monospace', height: 1.45);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (linked)
+          _WikiLink(label: value!, monospace: true)
+        else
+          SelectableText(value!, style: style),
+        if (showComma) const Text(', ', style: style),
+      ],
+    );
+  }
+}
+
+class _TextValue extends StatelessWidget {
+  const _TextValue(this.value, {this.monospace = false});
+
+  final String value;
+  final bool monospace;
+
+  @override
+  Widget build(BuildContext context) {
+    return SelectableText(
+      value,
+      style: TextStyle(
+        fontFamily: monospace ? 'monospace' : null,
+        height: 1.45,
+      ),
+    );
+  }
+}
+
+class _WikiValue extends StatelessWidget {
+  const _WikiValue({
+    required this.values,
+    this.weakIndexes = const <int>{},
+    this.familyLinks = false,
+  });
+
+  final List<String> values;
+  final Set<int> weakIndexes;
+  final bool familyLinks;
 
   @override
   Widget build(BuildContext context) {
     if (values.isEmpty) return const SizedBox.shrink();
-    return _ResultSection(
-      title: title,
+    const style = TextStyle(height: 1.45);
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (var index = 0; index < values.length; index++) ...[
+          if (index > 0) Text(', ', style: style),
+          if (weakIndexes.contains(index)) Text('(', style: style),
+          _WikiLink(
+            label: values[index],
+            wikiTitle: familyLinks ? '${values[index]} family' : null,
+          ),
+          if (weakIndexes.contains(index)) Text(')', style: style),
+        ],
+      ],
+    );
+  }
+}
+
+class _WikiLink extends StatelessWidget {
+  const _WikiLink({
+    required this.label,
+    this.wikiTitle,
+    this.monospace = false,
+  });
+
+  final String label;
+  final String? wikiTitle;
+  final bool monospace;
+
+  Uri get _uri => Uri.https('en.xen.wiki', '/w/${wikiTitle ?? label}');
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      color: Theme.of(context).colorScheme.primary,
+      fontFamily: monospace ? 'monospace' : null,
+      height: 1.45,
+    );
+    return Link(
+      uri: _uri,
+      builder: (context, followLink) => Semantics(
+        link: followLink != null,
+        label: label,
+        child: InkWell(
+          onTap: followLink == null ? null : () => followLink(),
+          child: Text(label, style: style),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommaBasisView extends StatelessWidget {
+  const _CommaBasisView({required this.commaBasis});
+
+  final List<CommaInfo> commaBasis;
+
+  @override
+  Widget build(BuildContext context) {
+    if (commaBasis.isEmpty) return const SizedBox.shrink();
+    final vectors = formatCommaBasisVectors(commaBasis);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final entry in values.entries)
-            _KeyValueLine(leading: entry.key, trailing: entry.value.join(', ')),
+          for (var index = 0; index < commaBasis.length; index++) ...[
+            SelectableText(
+              vectors[index],
+              key: ValueKey('comma-vector-$index'),
+              style: const TextStyle(fontFamily: 'monospace', height: 1.45),
+            ),
+            _WikiLink(label: commaBasis[index].ratio, monospace: true),
+            if (index < commaBasis.length - 1) const SizedBox(height: 12),
+          ],
         ],
       ),
     );
   }
+}
+
+/// Formats every comma vector with the same width for each exponent column.
+/// Padding is calculated across all rows so both brackets occupy the same
+/// character columns even when a row contains a negative or multi-digit value.
+List<String> formatCommaBasisVectors(List<CommaInfo> commaBasis) {
+  if (commaBasis.isEmpty) return const [];
+  final columnCount = commaBasis.fold<int>(
+    0,
+    (count, comma) => comma.vector.length > count ? comma.vector.length : count,
+  );
+  final widths = List<int>.filled(columnCount, 1);
+  for (final comma in commaBasis) {
+    for (var column = 0; column < comma.vector.length; column++) {
+      final width = comma.vector[column].toString().length;
+      if (width > widths[column]) widths[column] = width;
+    }
+  }
+  return [
+    for (final comma in commaBasis)
+      '[ ${_formatCommaVector(comma.vector, widths)} ]',
+  ];
+}
+
+String _formatCommaVector(List<int> vector, List<int> widths) {
+  return List<String>.generate(
+    widths.length,
+    (column) => column < vector.length
+        ? vector[column].toString().padLeft(widths[column])
+        : ''.padLeft(widths[column]),
+  ).join('  ');
 }
 
 class MatrixView extends StatelessWidget {
@@ -280,25 +510,17 @@ class MatrixView extends StatelessWidget {
           (width, value) =>
               value.toString().length > width ? value.toString().length : width,
         );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLowest,
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.all(12),
-        child: SelectableText(
-          rows
-              .map(
-                (row) => row
-                    .map((value) => value.toString().padLeft(widest))
-                    .join('  '),
-              )
-              .join('\n'),
-          style: const TextStyle(fontFamily: 'monospace', height: 1.55),
-        ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SelectableText(
+        rows
+            .map(
+              (row) => row
+                  .map((value) => value.toString().padLeft(widest))
+                  .join('  '),
+            )
+            .join('\n'),
+        style: const TextStyle(fontFamily: 'monospace', height: 1.55),
       ),
     );
   }

@@ -105,6 +105,11 @@ void main() {
       '12, 31',
     );
 
+    final definitionRect = tester.getRect(find.text('Definition'));
+    final sourceSwitchRect = tester.getRect(find.text('EDOs'));
+    expect(sourceSwitchRect.center.dy, closeTo(definitionRect.center.dy, 0.1));
+    expect(sourceSwitchRect.left, greaterThan(definitionRect.left));
+
     await tester.tap(find.text('Commas'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('calculator-edos')), findsNothing);
@@ -149,8 +154,8 @@ void main() {
     expect(submittedInput!.weight, TuningWeight.weil);
 
     expect(find.text('Temperament info'), findsOneWidget);
-    expect(find.text('Rank 2'), findsOneWidget);
-    expect(find.text('Mapping'), findsOneWidget);
+    expect(find.text('rank'), findsOneWidget);
+    expect(find.text('mapping'), findsOneWidget);
     final matrixText = tester.widget<SelectableText>(
       find.descendant(
         of: find.byType(MatrixView),
